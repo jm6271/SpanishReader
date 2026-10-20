@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SpanishReader (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SpanishReader (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
