@@ -29,7 +29,7 @@
             <StackPanel Spacing="16" Padding="0,0,16,8">
                 <StackPanel Spacing="4">
                     <TextBox Header="Spanish title *" AutomationProperties.AutomationId="SpanishTitle"
-                             Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                             Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Language="es-MX" />
                     <TextBlock Text="{x:Bind ViewModel.TitleError, Mode=OneWay}"
                                Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.TitleError), Mode=OneWay}"
                                Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
@@ -57,7 +57,8 @@
                              MinHeight="240" MaxHeight="400" VerticalContentAlignment="Top"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              Text="{x:Bind ViewModel.StoryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             AutomationProperties.AutomationId="StoryText" />
+                             AutomationProperties.AutomationId="StoryText" 
+                             Language="es-MX"/>
                     <TextBlock Text="{x:Bind ViewModel.StoryTextError, Mode=OneWay}"
                                Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.StoryTextError), Mode=OneWay}"
                                Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
