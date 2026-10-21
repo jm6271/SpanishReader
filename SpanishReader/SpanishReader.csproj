@@ -34,6 +34,14 @@
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 
+  <!-- Keep the model and its relative-path configuration together in builds and MSIX payloads. -->
+  <ItemGroup>
+    <Content Include="TranslationModels\esen\*.bin;TranslationModels\esen\*.spm;TranslationModels\esen\*.yml;TranslationModels\esen\*.md;TranslationModels\esen\LICENSE">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <!--
     Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging
     Tools extension to be activated for this project even if the Windows App SDK Nuget
