@@ -2,6 +2,7 @@
 
 public class Story
 {
+    public long Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string EnglishTitle { get; set;  } = string.Empty;
     public CEFR Level { get; set; } = CEFR.A1;

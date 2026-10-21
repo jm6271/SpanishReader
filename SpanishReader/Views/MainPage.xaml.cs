@@ -1,4 +1,6 @@
 using Microsoft.UI.Xaml.Controls;
+using SpanishReader.Core.Abstractions;
+using SpanishReader.Core.Models;
 using SpanishReader.Core.ViewModels;
 
 namespace SpanishReader.Views
@@ -6,7 +8,7 @@ namespace SpanishReader.Views
     /// <summary>
     /// The main content page displayed inside the application window.
     /// </summary>
-    public sealed partial class MainPage : Page
+    public sealed partial class MainPage : Page, INavigationAware
     {
         public MainPageViewModel ViewModel { get; }
 
@@ -15,6 +17,18 @@ namespace SpanishReader.Views
             ViewModel = viewModel;
             InitializeComponent();
             DataContext = ViewModel;
+            Loaded += OnLoaded;
+        }
+
+        private async void OnLoaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            await ViewModel.LoadCommand.ExecuteAsync(null);
+        }
+
+        public void OnNavigatedTo(object? parameter)
+        {
+            if (parameter is Story story)
+                ViewModel.PrepareForDisplay(story);
         }
     }
 }

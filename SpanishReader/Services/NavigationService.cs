@@ -2,6 +2,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SpanishReader.Core.Abstractions;
+using SpanishReader.Core.Models;
+using SpanishReader.Views;
 
 namespace SpanishReader.Services;
 
@@ -25,6 +27,10 @@ public class NavigationService : INavigationService
         }
 
         var page = ((App)Application.Current).Services.GetRequiredService(pageType);
+        if (page is INavigationAware navigationAwarePage)
+        {
+            navigationAwarePage.OnNavigatedTo(parameter);
+        }
         _frame.Content = page;
     }
 

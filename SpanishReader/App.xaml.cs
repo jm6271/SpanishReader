@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using SpanishReader.Core.Abstractions;
+using SpanishReader.Core.Services;
 using SpanishReader.Core.ViewModels;
 using SpanishReader.Services;
 using SpanishReader.Views;
@@ -46,6 +47,7 @@ namespace SpanishReader
             InitializeComponent();
 
             var services = new ServiceCollection();
+            services.AddSingleton<IStoryRepository>(_ => new SqliteStoryRepository(AppDataPath.GetDatabasePath()));
             services.AddSingleton<MainPageViewModel>();
             services.AddSingleton<MainPage>();
             services.AddSingleton<MainWindow>();
