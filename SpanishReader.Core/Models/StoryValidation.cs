@@ -9,8 +9,8 @@ public static class StoryValidation
             errors[nameof(Story.Title)] = "Enter a Spanish title.";
         if (!Enum.IsDefined(story.Level))
             errors[nameof(Story.Level)] = "Choose a CEFR level from A1 to C2.";
-        if (string.IsNullOrWhiteSpace(story.StoryText))
-            errors[nameof(Story.StoryText)] = "Enter the Spanish story text.";
+        if (story.Sentences.Count == 0 || story.Sentences.Any(sentence => string.IsNullOrWhiteSpace(sentence.SpanishText)))
+            errors[nameof(Story.Sentences)] = "Enter the Spanish story text.";
         return errors;
     }
 }

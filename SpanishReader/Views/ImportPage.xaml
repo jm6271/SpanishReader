@@ -70,7 +70,8 @@
         <StackPanel Grid.Row="3" Spacing="12" Margin="0,16,0,0">
             <ProgressBar IsIndeterminate="True"
                          Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsSaving), Mode=OneWay}"
-                         AutomationProperties.Name="Saving story" />
+                         AutomationProperties.AutomationId="ImportProgress"
+                         AutomationProperties.Name="Translating and saving story" />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <Button Content="Import story" Style="{StaticResource AccentButtonStyle}"
                         Command="{x:Bind ViewModel.SaveCommand}" AutomationProperties.AutomationId="SaveStory" />

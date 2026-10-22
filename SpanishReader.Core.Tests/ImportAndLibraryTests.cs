@@ -16,12 +16,14 @@ public class ImportAndLibraryTests
     {
         var repository = new FakeRepository();
         var navigation = new FakeNavigation();
-        var vm = new ImportPageViewModel(repository, navigation) { Title = title, StoryText = text, Level = (CEFR)level };
+        var translation = new FakeTranslation();
+        var vm = new ImportPageViewModel(repository, navigation, translation) { Title = title, StoryText = text, Level = (CEFR)level };
         await vm.SaveCommand.ExecuteAsync(null);
         Assert.Equal(titleError, vm.TitleError.Length > 0);
         Assert.Equal(textError, vm.StoryTextError.Length > 0);
         Assert.Equal(levelError, vm.LevelError.Length > 0);
         Assert.Equal(0, repository.AddCalls);
+        Assert.Empty(translation.Calls);
         Assert.Null(navigation.Target);
     }
 
@@ -103,7 +105,7 @@ public class ImportAndLibraryTests
     [Fact]
     public async Task ValidationErrorsClearAfterCorrection()
     {
-        var vm = new ImportPageViewModel(new FakeRepository(), new FakeNavigation());
+        var vm = new ImportPageViewModel(new FakeRepository(), new FakeNavigation(), new FakeTranslation());
         await vm.SaveCommand.ExecuteAsync(null);
         Assert.NotEmpty(vm.TitleError);
         vm.Title = "Título";
@@ -182,8 +184,113 @@ public class ImportAndLibraryTests
         Assert.False(vm.IsLoading);
     }
 
-    private static ImportPageViewModel ValidImport(FakeRepository repository, FakeNavigation navigation) =>
-        new(repository, navigation) { Title = "Título", StoryText = "  Texto\n\nFin. " };
+    [Fact]
+    public async Task TranslatesEachTrimmedSentenceAndPreservesOriginalText()
+    {
+        var repository = new FakeRepository();
+        var translation = new FakeTranslation();
+        var vm = ValidImport(repository, new FakeNavigation(), translation);
+        vm.StoryText = "  ¡Hola!\r\n\r\n  ¿Cómo estás?\nFin.  ";
+        var text = vm.StoryText;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Equal(new[] { "¡Hola!", "¿Cómo estás?", "Fin." }, translation.Calls);
+        var saved = Assert.IsType<Story>(repository.Saved);
+        Assert.Equal(text, string.Concat(saved.Sentences.Select(sentence => sentence.SpanishText)));
+        Assert.Equal(translation.Calls.Select(value => $"English: {value}"), saved.Sentences.Select(s => s.EnglishText));
+        Assert.Equal(new[] { 0, 1, 2 }, saved.Sentences.Select(s => s.Position));
+    }
+
+    [Fact]
+    public async Task TranslationFailureDoesNotSkipLaterSentencesOrPreventSave()
+    {
+        var repository = new FakeRepository();
+        var navigation = new FakeNavigation();
+        var translation = new FakeTranslation
+        {
+            Translate = text => text == "Segunda." ? Task.FromException<string>(new IOException("Engine failed"))
+                : Task.FromResult($"English: {text}")
+        };
+        var vm = ValidImport(repository, navigation, translation);
+        vm.StoryText = "Primera. Segunda. Tercera.";
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Equal(3, translation.Calls.Count);
+        var saved = Assert.IsType<Story>(repository.Saved);
+        Assert.Equal(new[] { "English: Primera.", "", "English: Tercera." }, saved.Sentences.Select(s => s.EnglishText));
+        Assert.Empty(vm.ErrorMessage);
+        Assert.Empty(vm.StoryText);
+        Assert.Equal(typeof(MainPageViewModel), navigation.Target);
+        var library = new MainPageViewModel(repository, navigation);
+        library.PrepareForDisplay(saved);
+        Assert.Empty(library.SuccessMessage);
+        Assert.Contains("1 sentence has no English translation", library.ImportWarningMessage);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AllMissingTranslationsStillSaveAndReportTheirCount(bool throws)
+    {
+        var repository = new FakeRepository();
+        var translation = new FakeTranslation
+        {
+            Translate = _ => throws ? Task.FromException<string>(new IOException("Unavailable")) : Task.FromResult(" \r\n ")
+        };
+        var vm = ValidImport(repository, new FakeNavigation(), translation);
+        await vm.SaveCommand.ExecuteAsync(null);
+        var saved = Assert.IsType<Story>(repository.Saved);
+        Assert.Equal(2, translation.Calls.Count);
+        Assert.All(saved.Sentences, sentence => Assert.Empty(sentence.EnglishText));
+        var library = new MainPageViewModel(repository, new FakeNavigation());
+        library.PrepareForDisplay(saved);
+        Assert.Contains("2 sentences have no English translation", library.ImportWarningMessage);
+        library.PrepareForDisplay(new Story { Title = "Completa", Sentences = [new() { SpanishText = "Hola.", EnglishText = "Hello." }] });
+        Assert.Empty(library.ImportWarningMessage);
+        Assert.Contains("Completa", library.SuccessMessage);
+        library.PrepareForDisplay(null);
+        Assert.Empty(library.ImportWarningMessage);
+        Assert.Empty(library.SuccessMessage);
+    }
+
+    [Fact]
+    public async Task PendingTranslationDisablesEditingAndOnlySavesAfterCompletion()
+    {
+        var pending = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var repository = new FakeRepository();
+        var navigation = new FakeNavigation();
+        var translation = new FakeTranslation { Translate = _ => pending.Task };
+        var vm = ValidImport(repository, navigation, translation);
+        var saving = vm.SaveCommand.ExecuteAsync(null);
+        Assert.True(vm.IsSaving);
+        Assert.False(vm.CanEdit);
+        Assert.False(vm.BackCommand.CanExecute(null));
+        Assert.False(vm.SaveCommand.CanExecute(null));
+        Assert.Equal(0, repository.AddCalls);
+        Assert.Single(translation.Calls);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Single(translation.Calls);
+        Assert.Null(navigation.Target);
+        pending.SetResult("  English translation  ");
+        await saving;
+        Assert.Equal(2, translation.Calls.Count);
+        Assert.Equal(1, repository.AddCalls);
+        Assert.All(repository.Saved!.Sentences, sentence => Assert.Equal("English translation", sentence.EnglishText));
+        Assert.False(vm.IsSaving);
+    }
+
+    private static ImportPageViewModel ValidImport(FakeRepository repository, FakeNavigation navigation, FakeTranslation? translation = null) =>
+        new(repository, navigation, translation ?? new FakeTranslation()) { Title = "Título", StoryText = "  Texto\n\nFin. " };
+
+    private sealed class FakeTranslation : ITranslationService
+    {
+        public List<string> Calls { get; } = [];
+        public Func<string, Task<string>> Translate { get; init; } = text => Task.FromResult($"English: {text}");
+
+        public Task<string> TranslateAsync(string spanish, CancellationToken cancellationToken = default)
+        {
+            Calls.Add(spanish);
+            return Translate(spanish);
+        }
+    }
 
     private sealed class FakeRepository : IStoryRepository
     {

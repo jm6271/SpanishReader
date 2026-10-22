@@ -25,7 +25,7 @@ public sealed class BergamotTranslationService : ITranslationService, IDisposabl
         ArgumentException.ThrowIfNullOrWhiteSpace(spanish);
 
         // Both model initialization and inference are blocking native calls. Keep them
-        // off the UI thread, and reuse the model for subsequent sentence selections.
+        // off the UI thread, and reuse the model for subsequent story sentences.
         return Task.Run(() =>
         {
             // Bergamot exposes no thread-safety guarantee. Disposal takes the same lock

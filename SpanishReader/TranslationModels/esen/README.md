@@ -31,6 +31,14 @@ requests because the wrapper does not promise thread safety. Cancellation can
 stop queued work or skip inference after loading, but cannot interrupt a native
 call already in progress. The DI container disposes the engine on window close.
 
+Story import splits the original Spanish text into ordered sentences and translates
+each one before saving the story and its sentences in a single SQLite transaction.
+Sentence slices retain punctuation and whitespace, including paragraph breaks.
+Translation failures leave empty English text and do not prevent import; the library
+shows a dismissible warning with the number of missing translations. On-demand
+translation of these missing values is reserved for future reader functionality.
+Schema version 2 deliberately starts an empty library when upgrading from version 1.
+
 Validation on Windows x64:
 
 ```powershell

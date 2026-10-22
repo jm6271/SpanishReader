@@ -1,4 +1,7 @@
 using SpanishReader.Core.Services;
+using SpanishReader.Core.Abstractions;
+using SpanishReader.Core.Models;
+using SpanishReader.Core.ViewModels;
 using Xunit.Abstractions;
 
 namespace SpanishReader.Core.Tests;
@@ -31,6 +34,44 @@ public class TranslationTests(ITestOutputHelper output)
 
         service.Dispose();
         await Assert.ThrowsAsync<ObjectDisposedException>(() => service.TranslateAsync("Hola."));
+    }
+
+    [Fact]
+    public async Task ImportPersistsBundledEngineTranslationsAcrossRepositoryInstances()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "SpanishReader.Tests", Guid.NewGuid().ToString("N"));
+        var database = Path.Combine(directory, "Stories.db");
+        try
+        {
+            using var translation = new BergamotTranslationService(ConfigPath);
+            var navigation = new ImportNavigation();
+            var import = new ImportPageViewModel(new SqliteStoryRepository(database), navigation, translation)
+            {
+                Title = "Prueba", StoryText = "  Hola, mundo.\n\nEl gato está durmiendo.  "
+            };
+            var text = import.StoryText;
+            await import.SaveCommand.ExecuteAsync(null);
+            Assert.Empty(import.ErrorMessage);
+            Assert.NotNull(navigation.Saved);
+            var loaded = Assert.Single(await new SqliteStoryRepository(database).GetAllAsync());
+            Assert.Equal(navigation.Saved.Id, loaded.Id);
+            Assert.Equal(text, string.Concat(loaded.Sentences.Select(sentence => sentence.SpanishText)));
+            Assert.Equal(2, loaded.Sentences.Count);
+            Assert.Contains("hello", loaded.Sentences[0].EnglishText, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("world", loaded.Sentences[0].EnglishText, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("cat", loaded.Sentences[1].EnglishText, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("sleep", loaded.Sentences[1].EnglishText, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private sealed class ImportNavigation : INavigationService
+    {
+        public Story? Saved { get; private set; }
+        public void Navigate<T>(object? parameter = null) where T : class => Saved = Assert.IsType<Story>(parameter);
     }
 
     [Fact]

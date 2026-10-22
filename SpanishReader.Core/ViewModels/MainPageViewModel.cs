@@ -20,12 +20,20 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
     public partial string ErrorMessage { get; set; } = string.Empty;
 
     [ObservableProperty] public partial string SuccessMessage { get; set; } = string.Empty;
+    [ObservableProperty] public partial string ImportWarningMessage { get; set; } = string.Empty;
     public bool IsEmpty => !IsLoading && ErrorMessage.Length == 0 && Stories.Count == 0;
 
     // Navigation delivers a saved story before this singleton page loads.
     public void PrepareForDisplay(Story? importedStory)
     {
-        SuccessMessage = importedStory is null ? string.Empty : $"Imported “{importedStory.Title}”.";
+        SuccessMessage = ImportWarningMessage = string.Empty;
+        if (importedStory is null) return;
+        var missing = importedStory.Sentences.Count(sentence => string.IsNullOrWhiteSpace(sentence.EnglishText));
+        if (missing == 0)
+            SuccessMessage = $"Imported “{importedStory.Title}”.";
+        else
+            ImportWarningMessage = $"Imported “{importedStory.Title}”. " +
+                (missing == 1 ? "1 sentence has no English translation." : $"{missing} sentences have no English translation.");
     }
 
     [RelayCommand(AllowConcurrentExecutions = true)]

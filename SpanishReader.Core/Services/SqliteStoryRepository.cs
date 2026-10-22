@@ -21,7 +21,7 @@ public sealed class SqliteStoryRepository : IStoryRepository
         _databasePath = databasePath;
         _connectionString = new SqliteConnectionStringBuilder
         {
-            DataSource = databasePath, Pooling = false, DefaultTimeout = 5
+            DataSource = databasePath, Pooling = false, DefaultTimeout = 5, ForeignKeys = true
         }.ToString();
     }
 
@@ -31,32 +31,59 @@ public sealed class SqliteStoryRepository : IStoryRepository
         if (StoryValidation.Validate(story).Count != 0)
             throw new ArgumentException("The story is missing required information.", nameof(story));
 
-        // Snapshot before dispatching work; the caller may retain an editable draft.
+        // Deep-copy before dispatching work; the caller may retain editable sentences.
+        // Collection order is authoritative; persistence assigns contiguous positions.
         var saved = new Story
         {
             Title = story.Title.Trim(),
             EnglishTitle = story.EnglishTitle.Trim(),
             Author = story.Author.Trim(),
             Level = story.Level,
-            StoryText = story.StoryText,
+            Sentences = story.Sentences.Select((sentence, position) => new StorySentence
+            {
+                Position = position,
+                SpanishText = sentence.SpanishText,
+                EnglishText = sentence.EnglishText
+            }).ToList(),
             DateAdded = DateTime.UtcNow
         };
 
         return ExecuteAsync(connection =>
         {
+            using var transaction = connection.BeginTransaction();
             using var command = connection.CreateCommand();
+            command.Transaction = transaction;
             command.CommandText = """
-                INSERT INTO Stories (Title, EnglishTitle, Level, Author, StoryText, DateAdded)
-                VALUES ($title, $englishTitle, $level, $author, $text, $date)
+                INSERT INTO Stories (Title, EnglishTitle, Level, Author, DateAdded)
+                VALUES ($title, $englishTitle, $level, $author, $date)
                 RETURNING Id;
                 """;
             command.Parameters.AddWithValue("$title", saved.Title);
             command.Parameters.AddWithValue("$englishTitle", saved.EnglishTitle);
             command.Parameters.AddWithValue("$level", saved.Level.ToString());
             command.Parameters.AddWithValue("$author", saved.Author);
-            command.Parameters.AddWithValue("$text", saved.StoryText);
             command.Parameters.AddWithValue("$date", saved.DateAdded.ToString("O", CultureInfo.InvariantCulture));
             saved.Id = (long)command.ExecuteScalar()!;
+
+            command.CommandText = """
+                INSERT INTO StorySentences (StoryId, Position, SpanishText, EnglishText)
+                VALUES ($storyId, $position, $spanish, $english) RETURNING Id;
+                """;
+            command.Parameters.Clear();
+            command.Parameters.AddWithValue("$storyId", saved.Id);
+            var positionParameter = command.Parameters.Add("$position", SqliteType.Integer);
+            var spanishParameter = command.Parameters.Add("$spanish", SqliteType.Text);
+            var englishParameter = command.Parameters.Add("$english", SqliteType.Text);
+            foreach (var sentence in saved.Sentences)
+            {
+                sentence.StoryId = saved.Id;
+                positionParameter.Value = sentence.Position;
+                spanishParameter.Value = sentence.SpanishText;
+                englishParameter.Value = sentence.EnglishText;
+                sentence.Id = (long)command.ExecuteScalar()!;
+            }
+            // A failed sentence insert rolls back the parent and all earlier sentences.
+            transaction.Commit();
             return saved;
         });
     }
@@ -65,27 +92,41 @@ public sealed class SqliteStoryRepository : IStoryRepository
     {
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT Id, Title, EnglishTitle, Level, Author, StoryText, DateAdded
-            FROM Stories ORDER BY DateAdded DESC, Id DESC;
+            SELECT s.Id, s.Title, s.EnglishTitle, s.Level, s.Author, s.DateAdded,
+                   t.Id, t.Position, t.SpanishText, t.EnglishText
+            FROM Stories s LEFT JOIN StorySentences t ON t.StoryId = s.Id
+            ORDER BY s.DateAdded DESC, s.Id DESC, t.Position;
             """;
         using var reader = command.ExecuteReader();
         var stories = new List<Story>();
+        Story? story = null;
         while (reader.Read())
         {
-            var levelName = reader.GetString(3);
-            if (!Enum.TryParse<CEFR>(levelName, out var level) || !Enum.IsDefined(level))
-                throw new InvalidDataException("The database contains an unsupported CEFR level.");
-
-            stories.Add(new Story
+            // One joined read provides a consistent snapshot without an N+1 query
+            // for each story. Stories stay newest-first and sentences stay in order.
+            if (story is null || story.Id != reader.GetInt64(0))
             {
-                Id = reader.GetInt64(0),
-                Title = reader.GetString(1),
-                EnglishTitle = reader.GetString(2),
-                Level = level,
-                Author = reader.GetString(4),
-                StoryText = reader.GetString(5),
-                DateAdded = DateTime.Parse(reader.GetString(6), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
-            });
+                var levelName = reader.GetString(3);
+                if (!Enum.TryParse<CEFR>(levelName, out var level) || !Enum.IsDefined(level))
+                    throw new InvalidDataException("The database contains an unsupported CEFR level.");
+
+                story = new Story
+                {
+                    Id = reader.GetInt64(0),
+                    Title = reader.GetString(1),
+                    EnglishTitle = reader.GetString(2),
+                    Level = level,
+                    Author = reader.GetString(4),
+                    DateAdded = DateTime.Parse(reader.GetString(5), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
+                };
+                stories.Add(story);
+            }
+            if (!reader.IsDBNull(6))
+                story.Sentences.Add(new StorySentence
+                {
+                    Id = reader.GetInt64(6), StoryId = story.Id, Position = reader.GetInt32(7),
+                    SpanishText = reader.GetString(8), EnglishText = reader.GetString(9)
+                });
         }
         return stories;
     });
@@ -115,10 +156,18 @@ public sealed class SqliteStoryRepository : IStoryRepository
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version;";
         var version = (long)command.ExecuteScalar()!;
-        if (version > 1)
+        if (version > 2)
             throw new InvalidDataException("This database requires a newer version of SpanishReader.");
 
-        if (version == 0)
+        if (version == 1)
+        {
+            // This upgrade deliberately starts an empty library, as selected for
+            // the sentence-based model. The reset and new schema commit together.
+            command.CommandText = "DROP TABLE Stories;";
+            command.ExecuteNonQuery();
+        }
+
+        if (version < 2)
         {
             command.CommandText = """
                 CREATE TABLE IF NOT EXISTS Stories (
@@ -127,10 +176,17 @@ public sealed class SqliteStoryRepository : IStoryRepository
                     EnglishTitle TEXT NOT NULL DEFAULT '',
                     Level TEXT NOT NULL CHECK (Level IN ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
                     Author TEXT NOT NULL DEFAULT '',
-                    StoryText TEXT NOT NULL,
                     DateAdded TEXT NOT NULL
                 );
-                PRAGMA user_version = 1;
+                CREATE TABLE StorySentences (
+                    Id INTEGER PRIMARY KEY,
+                    StoryId INTEGER NOT NULL REFERENCES Stories(Id) ON DELETE CASCADE,
+                    Position INTEGER NOT NULL CHECK (Position >= 0),
+                    SpanishText TEXT NOT NULL CHECK (length(trim(SpanishText)) > 0),
+                    EnglishText TEXT NOT NULL DEFAULT '',
+                    UNIQUE (StoryId, Position)
+                );
+                PRAGMA user_version = 2;
                 """;
             command.ExecuteNonQuery();
         }

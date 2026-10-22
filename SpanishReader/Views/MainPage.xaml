@@ -79,6 +79,10 @@
                      IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.SuccessMessage), Mode=OneWay}"
                      Message="{x:Bind ViewModel.SuccessMessage, Mode=OneWay}"
                      AutomationProperties.AutomationId="ImportSuccess" />
+            <InfoBar Severity="Warning" IsClosable="True"
+                     IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ImportWarningMessage), Mode=OneWay}"
+                     Message="{x:Bind ViewModel.ImportWarningMessage, Mode=OneWay}"
+                     AutomationProperties.AutomationId="ImportWarning" />
             <InfoBar Severity="Error" IsClosable="False"
                      IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
                      Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
