@@ -32,5 +32,10 @@ namespace SpanishReader.Views
 
         private void OnStoryClicked(object sender, ItemClickEventArgs e) =>
             ViewModel.OpenStoryCommand.Execute(e.ClickedItem as Story);
+
+        // Use the same breakpoint as the reader; the CommandBar handles
+        // moving commands to overflow when the remaining width is limited.
+        private void OnPageSizeChanged(object sender, Microsoft.UI.Xaml.SizeChangedEventArgs e) =>
+            Microsoft.UI.Xaml.VisualStateManager.GoToState(this, ActualWidth < 900 ? "Narrow" : "Wide", false);
     }
 }

@@ -12,6 +12,8 @@
             <SolidColorBrush x:Key="ReaderAccentBrush" Color="#835B35" />
             <SolidColorBrush x:Key="ReaderRuleBrush" Color="#DDD2BC" />
             <SolidColorBrush x:Key="ReaderHoverBrush" Color="#EEE1C6" />
+            <!-- This lighter tint keeps small, muted metadata above 4.5:1 contrast. -->
+            <StaticResource x:Key="ReaderLibraryHoverBrush" ResourceKey="ReaderNotesBrush" />
             <StaticResource x:Key="ReaderHoverInkBrush" ResourceKey="ReaderInkBrush" />
             <StaticResource x:Key="HyperlinkForeground" ResourceKey="ReaderInkBrush" />
             <StaticResource x:Key="HyperlinkForegroundPointerOver" ResourceKey="ReaderInkBrush" />
@@ -26,6 +28,7 @@
             <SolidColorBrush x:Key="ReaderAccentBrush" Color="#D1AC79" />
             <SolidColorBrush x:Key="ReaderRuleBrush" Color="#4A4337" />
             <SolidColorBrush x:Key="ReaderHoverBrush" Color="#4A4030" />
+            <StaticResource x:Key="ReaderLibraryHoverBrush" ResourceKey="ReaderHoverBrush" />
             <StaticResource x:Key="ReaderHoverInkBrush" ResourceKey="ReaderInkBrush" />
             <StaticResource x:Key="HyperlinkForeground" ResourceKey="ReaderInkBrush" />
             <StaticResource x:Key="HyperlinkForegroundPointerOver" ResourceKey="ReaderInkBrush" />
@@ -40,6 +43,9 @@
             <StaticResource x:Key="ReaderAccentBrush" ResourceKey="SystemColorHotlightBrush" />
             <StaticResource x:Key="ReaderRuleBrush" ResourceKey="SystemColorWindowTextBrush" />
             <StaticResource x:Key="ReaderHoverBrush" ResourceKey="SystemColorHighlightBrush" />
+            <!-- Library entries contain secondary text: retain the window/text
+                 pair in contrast themes and indicate hover with a ruled outline. -->
+            <StaticResource x:Key="ReaderLibraryHoverBrush" ResourceKey="SystemColorWindowBrush" />
             <StaticResource x:Key="ReaderHoverInkBrush" ResourceKey="SystemColorHighlightTextBrush" />
             <StaticResource x:Key="HyperlinkForeground" ResourceKey="SystemColorWindowTextBrush" />
             <StaticResource x:Key="HyperlinkForegroundPointerOver" ResourceKey="SystemColorWindowTextBrush" />
@@ -51,5 +57,32 @@
         <Setter Property="CharacterSpacing" Value="180" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{ThemeResource ReaderMutedBrush}" />
+    </Style>
+    <!-- Explicit styles let the library and import pages share the reader's
+         paper treatment without changing standard controls elsewhere. -->
+    <Style x:Key="ReaderPageHeadingStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Georgia" />
+        <Setter Property="FontSize" Value="36" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{ThemeResource ReaderInkBrush}" />
+        <Setter Property="AutomationProperties.HeadingLevel" Value="Level1" />
+    </Style>
+    <Style x:Key="ReaderFormTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+        <Setter Property="Background" Value="{ThemeResource ReaderNotesBrush}" />
+        <Setter Property="Foreground" Value="{ThemeResource ReaderInkBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource ReaderRuleBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style x:Key="ReaderFormComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+        <Setter Property="Background" Value="{ThemeResource ReaderNotesBrush}" />
+        <Setter Property="Foreground" Value="{ThemeResource ReaderInkBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource ReaderRuleBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style x:Key="ReaderActionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="Padding" Value="20,10" />
+        <Setter Property="CornerRadius" Value="4" />
     </Style>
 </ResourceDictionary>

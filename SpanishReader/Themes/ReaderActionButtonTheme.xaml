@@ -1,0 +1,37 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Themes/ReaderTheme.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary.ThemeDictionaries>
+        <!-- Scope native button resources to the import action. Opaque fills in
+             every state avoid fading from custom paper into WinUI's translucent
+             hover fill, which briefly exposes a different surface underneath.
+             Retaining the native template preserves focus and disabled states. -->
+        <ResourceDictionary x:Key="Light">
+            <StaticResource x:Key="ButtonBackground" ResourceKey="ReaderNotesBrush" />
+            <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="ReaderHoverBrush" />
+            <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="ReaderRuleBrush" />
+            <StaticResource x:Key="ButtonForeground" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="ButtonBorderBrush" ResourceKey="ReaderAccentBrush" />
+            <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="ReaderAccentBrush" />
+            <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="ReaderAccentBrush" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <StaticResource x:Key="ButtonBackground" ResourceKey="ReaderNotesBrush" />
+            <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="ReaderHoverBrush" />
+            <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="ReaderRuleBrush" />
+            <StaticResource x:Key="ButtonForeground" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="ButtonBorderBrush" ResourceKey="ReaderAccentBrush" />
+            <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="ReaderAccentBrush" />
+            <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="ReaderAccentBrush" />
+        </ResourceDictionary>
+        <!-- Use the native system palette for every state in contrast themes. -->
+        <ResourceDictionary x:Key="HighContrast" />
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

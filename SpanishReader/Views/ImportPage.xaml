@@ -5,79 +5,145 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:SpanishReader.Views">
 
-    <Grid Margin="24" MaxWidth="750" HorizontalAlignment="Stretch">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Themes/ReaderTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
 
-        <StackPanel Spacing="8" Margin="0,0,0,16">
-            <TextBlock Text="Import story" Style="{StaticResource TitleTextBlockStyle}" />
-            <TextBlock Text="Add a Spanish story to your library. Fields marked * are required."
-                       TextWrapping="Wrap" />
-        </StackPanel>
+    <Grid Background="{ThemeResource ReaderCanvasBrush}" SizeChanged="OnPageSizeChanged">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="Wide" />
+                <VisualState x:Name="Narrow">
+                    <VisualState.Setters>
+                        <Setter Target="ImportShell.Margin" Value="16,8,16,16" />
+                        <Setter Target="ImportPaper.Padding" Value="24,24,24,20" />
+                        <Setter Target="ImportHeading.FontSize" Value="30" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
 
-        <InfoBar Grid.Row="1" Margin="0,0,0,12" Severity="Error" IsClosable="False"
-                 IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
-                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
-                 AutomationProperties.AutomationId="ImportError" />
+        <Grid x:Name="ImportShell" Margin="32,12,32,32" MaxWidth="1220">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid Margin="0,0,0,12">
+                <Button Command="{x:Bind ViewModel.BackCommand}" Style="{StaticResource SubtleButtonStyle}"
+                        Foreground="{ThemeResource ReaderMutedBrush}" Padding="12,8" Margin="-12,0,0,0"
+                        HorizontalAlignment="Left" MinHeight="36"
+                        AutomationProperties.AutomationId="BackToLibrary" AutomationProperties.Name="Back to library"
+                        ToolTipService.ToolTip="Back to library">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72B;" FontSize="12" />
+                        <TextBlock Text="Library" FontSize="13" />
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="GROW YOUR COLLECTION" Style="{StaticResource ReaderLabelStyle}"
+                           HorizontalAlignment="Right" VerticalAlignment="Center" />
+            </Grid>
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      HorizontalContentAlignment="Stretch" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
-            <StackPanel Spacing="16" Padding="0,0,16,8">
-                <StackPanel Spacing="4">
-                    <TextBox Header="Spanish title *" AutomationProperties.AutomationId="SpanishTitle"
-                             Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Language="es-MX" />
-                    <TextBlock Text="{x:Bind ViewModel.TitleError, Mode=OneWay}"
-                               Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.TitleError), Mode=OneWay}"
-                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
-                               AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="TitleError" />
-                </StackPanel>
+            <Border x:Name="ImportPaper" Grid.Row="1" Background="{ThemeResource ReaderPaperBrush}"
+                    BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1" CornerRadius="4" Padding="48,32,48,28">
+                <Grid MaxWidth="750">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                <TextBox Header="English title (optional)" AutomationProperties.AutomationId="EnglishTitle"
-                         Text="{x:Bind ViewModel.EnglishTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <StackPanel Spacing="16" Margin="0,0,0,24">
+                        <TextBlock x:Name="ImportHeading" Text="Import story" Style="{StaticResource ReaderPageHeadingStyle}"
+                                   AutomationProperties.AutomationId="ImportHeading" />
+                        <Border Height="1" Width="48" Background="{ThemeResource ReaderAccentBrush}" HorizontalAlignment="Center" />
+                        <TextBlock Text="Add a Spanish story to your library. Fields marked * are required."
+                                   Foreground="{ThemeResource ReaderMutedBrush}" TextAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
 
-                <StackPanel Spacing="4">
-                    <ComboBox Header="CEFR level *" ItemsSource="{x:Bind ViewModel.Levels, Mode=OneTime}"
-                              SelectedItem="{x:Bind ViewModel.Level, Mode=TwoWay}"
-                              AutomationProperties.AutomationId="CefrLevel" MinWidth="160" />
-                    <TextBlock Text="{x:Bind ViewModel.LevelError, Mode=OneWay}"
-                               Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.LevelError), Mode=OneWay}"
-                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
-                               AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="LevelError" />
-                </StackPanel>
+                    <InfoBar Grid.Row="1" Margin="0,0,0,12" Severity="Error" IsClosable="False"
+                             IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
+                             Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                             AutomationProperties.AutomationId="ImportError" />
 
-                <TextBox Header="Author (optional)" AutomationProperties.AutomationId="Author"
-                         Text="{x:Bind ViewModel.Author, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  AutomationProperties.AutomationId="ImportForm" AutomationProperties.Name="Story details"
+                                  HorizontalContentAlignment="Stretch" IsEnabled="{x:Bind ViewModel.CanEdit, Mode=OneWay}">
+                        <StackPanel Spacing="20" Padding="0,0,16,12">
+                            <StackPanel Spacing="4">
+                                <TextBox Header="Spanish title *" Style="{StaticResource ReaderFormTextBoxStyle}" AutomationProperties.AutomationId="SpanishTitle"
+                                         Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Language="es-MX" />
+                                <TextBlock Text="{x:Bind ViewModel.TitleError, Mode=OneWay}"
+                                           Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.TitleError), Mode=OneWay}"
+                                           Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
+                                           AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="TitleError" />
+                            </StackPanel>
 
-                <StackPanel Spacing="4">
-                    <TextBox Header="Spanish story text *" AcceptsReturn="True" TextWrapping="Wrap"
-                             MinHeight="240" MaxHeight="400" VerticalContentAlignment="Top"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             Text="{x:Bind ViewModel.StoryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             AutomationProperties.AutomationId="StoryText" 
-                             Language="es-MX"/>
-                    <TextBlock Text="{x:Bind ViewModel.StoryTextError, Mode=OneWay}"
-                               Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.StoryTextError), Mode=OneWay}"
-                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
-                               AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="StoryTextError" />
-                </StackPanel>
-            </StackPanel>
-        </ScrollViewer>
+                            <TextBox Header="English title (optional)" Style="{StaticResource ReaderFormTextBoxStyle}" AutomationProperties.AutomationId="EnglishTitle"
+                                     Text="{x:Bind ViewModel.EnglishTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-        <StackPanel Grid.Row="3" Spacing="12" Margin="0,16,0,0">
-            <ProgressBar IsIndeterminate="True"
-                         Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsSaving), Mode=OneWay}"
-                         AutomationProperties.AutomationId="ImportProgress"
-                         AutomationProperties.Name="Translating and saving story" />
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <Button Content="Import story" Style="{StaticResource AccentButtonStyle}"
-                        Command="{x:Bind ViewModel.SaveCommand}" AutomationProperties.AutomationId="SaveStory" />
-                <Button Content="Back to library" Command="{x:Bind ViewModel.BackCommand}"
-                        AutomationProperties.AutomationId="BackToLibrary" />
-            </StackPanel>
-        </StackPanel>
+                            <StackPanel Spacing="4">
+                                <ComboBox Header="CEFR level *" Style="{StaticResource ReaderFormComboBoxStyle}" ItemsSource="{x:Bind ViewModel.Levels, Mode=OneTime}"
+                                          SelectedItem="{x:Bind ViewModel.Level, Mode=TwoWay}"
+                                          AutomationProperties.AutomationId="CefrLevel" MinWidth="160" />
+                                <TextBlock Text="{x:Bind ViewModel.LevelError, Mode=OneWay}"
+                                           Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.LevelError), Mode=OneWay}"
+                                           Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
+                                           AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="LevelError" />
+                            </StackPanel>
+
+                            <TextBox Header="Author (optional)" Style="{StaticResource ReaderFormTextBoxStyle}" AutomationProperties.AutomationId="Author"
+                                     Text="{x:Bind ViewModel.Author, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <StackPanel Spacing="4">
+                                <TextBox AcceptsReturn="True" TextWrapping="Wrap"
+                                         Style="{StaticResource ReaderFormTextBoxStyle}" FontFamily="Georgia" FontSize="18"
+                                         MinHeight="240" MaxHeight="400" VerticalContentAlignment="Top"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         Text="{x:Bind ViewModel.StoryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.AutomationId="StoryText" AutomationProperties.Name="Spanish story text"
+                                         Language="es-MX">
+                                    <TextBox.Header>
+                                        <!-- The editor uses a reading font; its field label stays
+                                             consistent with the rest of the native form labels. -->
+                                        <TextBlock Text="Spanish story text *" FontFamily="{ThemeResource ContentControlThemeFontFamily}" FontSize="14" />
+                                    </TextBox.Header>
+                                </TextBox>
+                                <TextBlock Text="{x:Bind ViewModel.StoryTextError, Mode=OneWay}"
+                                           Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.StoryTextError), Mode=OneWay}"
+                                           Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
+                                           AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="StoryTextError" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Keep the action outside the scrolling form so it stays reachable
+                         while the story editor and field errors grow. -->
+                    <Border Grid.Row="3" BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="0,1,0,0" Margin="0,16,0,0" Padding="0,16,0,0">
+                        <StackPanel Spacing="12">
+                            <ProgressBar IsIndeterminate="True"
+                                         Foreground="{ThemeResource ReaderAccentBrush}"
+                                         Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsSaving), Mode=OneWay}"
+                                         AutomationProperties.AutomationId="ImportProgress"
+                                         AutomationProperties.Name="Translating and saving story" />
+                            <Button Content="Import story" Style="{StaticResource ReaderActionButtonStyle}" HorizontalAlignment="Left"
+                                    Command="{x:Bind ViewModel.SaveCommand}" AutomationProperties.AutomationId="SaveStory">
+                                <Button.Resources>
+                                    <ResourceDictionary>
+                                        <ResourceDictionary.MergedDictionaries>
+                                            <ResourceDictionary Source="ms-appx:///Themes/ReaderActionButtonTheme.xaml" />
+                                        </ResourceDictionary.MergedDictionaries>
+                                    </ResourceDictionary>
+                                </Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Page>

@@ -9,199 +9,245 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Themes/ReaderTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
 
-        <TextBlock Style="{ThemeResource TitleTextBlockStyle}" Margin="16">Library</TextBlock>
+    <Grid Background="{ThemeResource ReaderCanvasBrush}" SizeChanged="OnPageSizeChanged">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="Wide" />
+                <VisualState x:Name="Narrow">
+                    <VisualState.Setters>
+                        <Setter Target="LibraryShell.Margin" Value="16,8,16,16" />
+                        <Setter Target="LibraryPaper.Padding" Value="16,16,16,12" />
+                        <Setter Target="LibraryHeading.FontSize" Value="26" />
+                        <Setter Target="LibrarySearch.Width" Value="160" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
 
-        <CommandBar Grid.Row="1" Margin="16,0,16,0" DefaultLabelPosition="Right" VerticalContentAlignment="Center">
-            <CommandBar.Content>
-                <AutoSuggestBox
-                    Width="280"
-                    Margin="0,0,12,0"
-                    PlaceholderText="Search library"
-                    QueryIcon="Find"
-                    VerticalAlignment="Center"
-                    AutomationProperties.Name="Search library" />
-            </CommandBar.Content>
+        <Grid x:Name="LibraryShell" Margin="24,12,24,20" MaxWidth="1220">
+            <Border x:Name="LibraryPaper" Background="{ThemeResource ReaderPaperBrush}"
+                    BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1" CornerRadius="4" Padding="24,20,24,16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-            <AppBarButton Icon="Add" Label="Import" AutomationProperties.AutomationId="OpenImport" AutomationProperties.Name="Import to library" Command="{x:Bind ViewModel.ImportStoryCommand}" />
+                    <StackPanel Spacing="10" Margin="0,0,0,12">
+                        <TextBlock x:Name="LibraryHeading" Text="Library" Style="{StaticResource ReaderPageHeadingStyle}" FontSize="28"
+                                   AutomationProperties.AutomationId="LibraryHeading" />
+                        <Border Height="1" Width="48" Background="{ThemeResource ReaderAccentBrush}" HorizontalAlignment="Center" />
+                    </StackPanel>
 
-            <AppBarButton Icon="Sort" Label="Sort by" AutomationProperties.Name="Sort library">
-                <AppBarButton.Flyout>
-                    <MenuFlyout>
-                        <MenuFlyoutItem Text="Date added">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE74A;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Text="Date added">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE74B;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Text="CEFR level">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE74A;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Text="CEFR level">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE74B;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                    </MenuFlyout>
-                </AppBarButton.Flyout>
-            </AppBarButton>
+                    <CommandBar Grid.Row="1" Background="Transparent" Foreground="{ThemeResource ReaderInkBrush}"
+                                DefaultLabelPosition="Right" VerticalContentAlignment="Center" IsDynamicOverflowEnabled="True">
+                        <CommandBar.Content>
+                            <AutoSuggestBox
+                                x:Name="LibrarySearch" Width="280"
+                                Margin="0,0,12,0"
+                                PlaceholderText="Search library"
+                                QueryIcon="Find"
+                                Background="{ThemeResource ReaderNotesBrush}" Foreground="{ThemeResource ReaderInkBrush}"
+                                BorderBrush="{ThemeResource ReaderRuleBrush}"
+                                VerticalAlignment="Center"
+                                AutomationProperties.AutomationId="LibrarySearch"
+                                AutomationProperties.Name="Search library" />
+                        </CommandBar.Content>
 
-            <AppBarButton Icon="Filter" Label="CEFR level" AutomationProperties.Name="Filter library by CEFR level">
-                <AppBarButton.Flyout>
-                    <MenuFlyout>
-                        <MenuFlyoutItem Text="All levels" />
-                        <MenuFlyoutItem Text="A1" />
-                        <MenuFlyoutItem Text="A2" />
-                        <MenuFlyoutItem Text="B1" />
-                        <MenuFlyoutItem Text="B2" />
-                        <MenuFlyoutItem Text="C1" />
-                        <MenuFlyoutItem Text="C2" />
-                    </MenuFlyout>
-                </AppBarButton.Flyout>
-            </AppBarButton>
-        </CommandBar>
+                        <AppBarButton Icon="Add" Label="Import" AutomationProperties.AutomationId="OpenImport" AutomationProperties.Name="Import to library" Command="{x:Bind ViewModel.ImportStoryCommand}" />
 
-        <StackPanel Grid.Row="2" Margin="16,8,16,0" Spacing="8">
-            <InfoBar Severity="Success" IsClosable="True"
-                     IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.SuccessMessage), Mode=OneWay}"
-                     Message="{x:Bind ViewModel.SuccessMessage, Mode=OneWay}"
-                     AutomationProperties.AutomationId="ImportSuccess" />
-            <InfoBar Severity="Warning" IsClosable="True"
-                     IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ImportWarningMessage), Mode=OneWay}"
-                     Message="{x:Bind ViewModel.ImportWarningMessage, Mode=OneWay}"
-                     AutomationProperties.AutomationId="ImportWarning" />
-            <InfoBar Severity="Error" IsClosable="False"
-                     IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
-                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
-                     AutomationProperties.AutomationId="LibraryError">
-                <InfoBar.ActionButton>
-                    <Button Content="Try again" Command="{x:Bind ViewModel.LoadCommand}"
-                            AutomationProperties.AutomationId="RetryLibrary" />
-                </InfoBar.ActionButton>
-            </InfoBar>
-            <ProgressBar IsIndeterminate="True" AutomationProperties.Name="Loading library"
-                         Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsLoading), Mode=OneWay}" />
-            <TextBlock Text="Your library is empty. Import a story to get started." TextWrapping="Wrap"
-                       Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsEmpty), Mode=OneWay}"
-                       AutomationProperties.AutomationId="EmptyLibrary" />
-        </StackPanel>
+                        <AppBarButton Icon="Sort" Label="Sort by" AutomationProperties.Name="Sort library">
+                            <AppBarButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Date added">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE74A;" />
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem Text="Date added">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE74B;" />
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem Text="CEFR level">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE74A;" />
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem Text="CEFR level">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE74B;" />
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                </MenuFlyout>
+                            </AppBarButton.Flyout>
+                        </AppBarButton>
 
-        <Grid Grid.Row="3" Margin="0,16,0,0">
-            <ListView ItemsSource="{x:Bind ViewModel.Stories, Mode=OneWay}"
-                      AutomationProperties.AutomationId="StoryLibrary" AutomationProperties.Name="Stories"
-                      SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnStoryClicked">
-                <ListView.ItemContainerStyle>
-                    <Style TargetType="ListViewItem">
-                        <Setter Property="MaxWidth" Value="750" />
-                        <Setter Property="HorizontalAlignment" Value="Stretch" />
-                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                        <Setter Property="Padding" Value="0" />
-                        <Setter Property="Margin" Value="16,0,16,8" />
-                        <Setter Property="FocusVisualMargin" Value="-3" />
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="BorderThickness" Value="0" />
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="ListViewItem">
-                                    <Border x:Name="CardSurface"
-                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="1" CornerRadius="8"
-                                            Control.IsTemplateFocusTarget="True"
-                                            FocusVisualMargin="{TemplateBinding FocusVisualMargin}"
-                                            FocusVisualPrimaryBrush="{TemplateBinding FocusVisualPrimaryBrush}"
-                                            FocusVisualPrimaryThickness="{TemplateBinding FocusVisualPrimaryThickness}"
-                                            FocusVisualSecondaryBrush="{TemplateBinding FocusVisualSecondaryBrush}"
-                                            FocusVisualSecondaryThickness="{TemplateBinding FocusVisualSecondaryThickness}">
-                                        <VisualStateManager.VisualStateGroups>
-                                            <VisualStateGroup x:Name="CommonStates">
-                                                <VisualState x:Name="Normal" />
-                                                <VisualState x:Name="PointerOver">
-                                                    <VisualState.Setters>
-                                                        <Setter Target="CardSurface.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-                                                <VisualState x:Name="Pressed">
-                                                    <VisualState.Setters>
-                                                        <Setter Target="CardSurface.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-                                            </VisualStateGroup>
-                                            <VisualStateGroup x:Name="DisabledStates">
-                                                <VisualState x:Name="Enabled" />
-                                                <VisualState x:Name="Disabled">
-                                                    <VisualState.Setters>
-                                                        <Setter Target="CardSurface.Opacity" Value="{ThemeResource ListViewItemDisabledThemeOpacity}" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-                                            </VisualStateGroup>
-                                        </VisualStateManager.VisualStateGroups>
-                                        <ContentPresenter
-                                            Content="{TemplateBinding Content}"
-                                            ContentTemplate="{TemplateBinding ContentTemplate}"
-                                            ContentTransitions="{TemplateBinding ContentTransitions}"
-                                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
-                                            Margin="{TemplateBinding Padding}" />
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
-                </ListView.ItemContainerStyle>
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="models:Story">
-                        <Border Padding="16">
+                        <AppBarButton Icon="Filter" Label="CEFR level" AutomationProperties.Name="Filter library by CEFR level">
+                            <AppBarButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="All levels" />
+                                    <MenuFlyoutItem Text="A1" />
+                                    <MenuFlyoutItem Text="A2" />
+                                    <MenuFlyoutItem Text="B1" />
+                                    <MenuFlyoutItem Text="B2" />
+                                    <MenuFlyoutItem Text="C1" />
+                                    <MenuFlyoutItem Text="C2" />
+                                </MenuFlyout>
+                            </AppBarButton.Flyout>
+                        </AppBarButton>
+                    </CommandBar>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                    <!-- Closed InfoBars still occupy a StackPanel slot. Avoid
+                         spacing between slots so a quiet library has no empty status band. -->
+                    <StackPanel Grid.Row="2">
+                        <InfoBar Severity="Success" IsClosable="True"
+                                 IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.SuccessMessage), Mode=OneWay}"
+                                 Message="{x:Bind ViewModel.SuccessMessage, Mode=OneWay}"
+                                 AutomationProperties.AutomationId="ImportSuccess" />
+                        <InfoBar Severity="Warning" IsClosable="True"
+                                 IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ImportWarningMessage), Mode=OneWay}"
+                                 Message="{x:Bind ViewModel.ImportWarningMessage, Mode=OneWay}"
+                                 AutomationProperties.AutomationId="ImportWarning" />
+                        <InfoBar Severity="Error" IsClosable="False"
+                                 IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
+                                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                                 AutomationProperties.AutomationId="LibraryError">
+                            <InfoBar.ActionButton>
+                                <Button Content="Try again" Command="{x:Bind ViewModel.LoadCommand}"
+                                        AutomationProperties.AutomationId="RetryLibrary" />
+                            </InfoBar.ActionButton>
+                        </InfoBar>
+                        <ProgressBar IsIndeterminate="True" Foreground="{ThemeResource ReaderAccentBrush}" AutomationProperties.Name="Loading library"
+                                     Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsLoading), Mode=OneWay}" />
+                        <TextBlock Text="Your library is empty. Import a story to get started." TextWrapping="Wrap"
+                                   FontFamily="Georgia" FontSize="17" FontStyle="Italic" Margin="0,12"
+                                   Foreground="{ThemeResource ReaderMutedBrush}" TextAlignment="Center"
+                                   Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsEmpty), Mode=OneWay}"
+                                   AutomationProperties.AutomationId="EmptyLibrary" />
+                    </StackPanel>
 
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
+                    <Border Grid.Row="3" Margin="0,8,0,0" BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="0,1,0,0">
+                        <ListView ItemsSource="{x:Bind ViewModel.Stories, Mode=OneWay}"
+                                  Padding="0,4,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  AutomationProperties.AutomationId="StoryLibrary" AutomationProperties.Name="Stories"
+                                  SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnStoryClicked">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="12,10" />
+                                    <Setter Property="Margin" Value="4,0,4,2" />
+                                    <Setter Property="FocusVisualMargin" Value="0" />
+                                    <Setter Property="Foreground" Value="{ThemeResource ReaderInkBrush}" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListViewItem">
+                                                <Border x:Name="CardSurface"
+                                                        Background="{ThemeResource ReaderPaperBrush}"
+                                                        BorderBrush="{ThemeResource ReaderRuleBrush}"
+                                                        BorderThickness="0,0,0,1" CornerRadius="4"
+                                                        Control.IsTemplateFocusTarget="True"
+                                                        FocusVisualMargin="{TemplateBinding FocusVisualMargin}"
+                                                        FocusVisualPrimaryBrush="{TemplateBinding FocusVisualPrimaryBrush}"
+                                                        FocusVisualPrimaryThickness="{TemplateBinding FocusVisualPrimaryThickness}"
+                                                        FocusVisualSecondaryBrush="{TemplateBinding FocusVisualSecondaryBrush}"
+                                                        FocusVisualSecondaryThickness="{TemplateBinding FocusVisualSecondaryThickness}">
+                                                    <VisualStateManager.VisualStateGroups>
+                                                        <VisualStateGroup x:Name="CommonStates">
+                                                            <VisualState x:Name="Normal" />
+                                                            <VisualState x:Name="PointerOver">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="CardSurface.Background" Value="{ThemeResource ReaderLibraryHoverBrush}" />
+                                                                    <Setter Target="CardSurface.BorderBrush" Value="{ThemeResource ReaderAccentBrush}" />
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                            <VisualState x:Name="Pressed">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="CardSurface.Background" Value="{ThemeResource ReaderLibraryHoverBrush}" />
+                                                                    <Setter Target="CardSurface.BorderBrush" Value="{ThemeResource ReaderAccentBrush}" />
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                        </VisualStateGroup>
+                                                        <VisualStateGroup x:Name="DisabledStates">
+                                                            <VisualState x:Name="Enabled" />
+                                                            <VisualState x:Name="Disabled">
+                                                                <VisualState.Setters>
+                                                                    <Setter Target="CardSurface.Opacity" Value="{ThemeResource ListViewItemDisabledThemeOpacity}" />
+                                                                </VisualState.Setters>
+                                                            </VisualState>
+                                                        </VisualStateGroup>
+                                                    </VisualStateManager.VisualStateGroups>
+                                                    <ContentPresenter
+                                                        x:Name="StoryPresenter" Foreground="{TemplateBinding Foreground}"
+                                                        Content="{TemplateBinding Content}"
+                                                        ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                        ContentTransitions="{TemplateBinding ContentTransitions}"
+                                                        HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                        VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                        Margin="{TemplateBinding Padding}" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:Story">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
 
-                                <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="{x:Bind Title, Mode=OneTime}" TextWrapping="Wrap" Margin="0,0,12,0" />
-                                <TextBlock Grid.Column="0" Grid.Row="1" Text="{x:Bind EnglishTitle, Mode=OneTime}" FontSize="16" Margin="0,4,12,0" TextWrapping="Wrap" />
-                                
-                                <TextBlock Grid.Column="0" Grid.Row="2" Margin="0,4,12,0" FontSize="13" TextWrapping="Wrap"
-                                           Visibility="{x:Bind local:UiHelpers.WhenHasText(Author), Mode=OneTime}">
-                                    <Run Text="By " /><Run Text="{x:Bind Author, Mode=OneTime}" />
-                                </TextBlock>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
-                                <Border
-                                    Grid.Column="1"
-                                    Grid.Row="0"
-                                    Grid.RowSpan="3"
-                                    VerticalAlignment="Top"
-                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                    CornerRadius="12"
-                                    Padding="12,4">
-                                    
-                                    <TextBlock Text="{x:Bind Level, Mode=OneTime}" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
-                                </Border>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
+                                        <TextBlock FontFamily="Georgia" FontSize="20" Language="es"
+                                                   Text="{x:Bind Title, Mode=OneTime}" TextWrapping="Wrap" Margin="0,0,12,0" />
+                                        <TextBlock Grid.Row="1" Text="{x:Bind EnglishTitle, Mode=OneTime}" Language="en"
+                                                   Foreground="{ThemeResource ReaderMutedBrush}"
+                                                   FontFamily="Georgia" FontStyle="Italic" FontSize="15" Margin="0,3,12,0" TextWrapping="Wrap"
+                                                   Visibility="{x:Bind local:UiHelpers.WhenHasText(EnglishTitle), Mode=OneTime}" />
+
+                                        <TextBlock Grid.Column="0" Grid.Row="2" Margin="0,4,12,0" FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{ThemeResource ReaderMutedBrush}"
+                                                   Visibility="{x:Bind local:UiHelpers.WhenHasText(Author), Mode=OneTime}">
+                                            <Run Text="By " /><Run Text="{x:Bind Author, Mode=OneTime}" />
+                                        </TextBlock>
+
+                                        <Border
+                                            Grid.Column="1"
+                                            Grid.Row="0"
+                                            Grid.RowSpan="3"
+                                            VerticalAlignment="Top"
+                                            BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1"
+                                            CornerRadius="4" Padding="8,3">
+
+                                            <TextBlock Text="{x:Bind Level, Mode=OneTime}" FontSize="11" CharacterSpacing="100" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Border>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </Page>
