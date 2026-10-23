@@ -1,0 +1,55 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.ThemeDictionaries>
+        <!-- Warm paper and ink follow Windows light/dark preferences. -->
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="ReaderCanvasBrush" Color="#EAE5DA" />
+            <SolidColorBrush x:Key="ReaderPaperBrush" Color="#FFFCF4" />
+            <SolidColorBrush x:Key="ReaderNotesBrush" Color="#F7F1E5" />
+            <SolidColorBrush x:Key="ReaderInkBrush" Color="#332C23" />
+            <SolidColorBrush x:Key="ReaderMutedBrush" Color="#756958" />
+            <SolidColorBrush x:Key="ReaderAccentBrush" Color="#835B35" />
+            <SolidColorBrush x:Key="ReaderRuleBrush" Color="#DDD2BC" />
+            <SolidColorBrush x:Key="ReaderHoverBrush" Color="#EEE1C6" />
+            <StaticResource x:Key="ReaderHoverInkBrush" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="HyperlinkForeground" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="HyperlinkForegroundPointerOver" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="HyperlinkForegroundPressed" ResourceKey="ReaderInkBrush" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="ReaderCanvasBrush" Color="#201E1B" />
+            <SolidColorBrush x:Key="ReaderPaperBrush" Color="#2A2722" />
+            <SolidColorBrush x:Key="ReaderNotesBrush" Color="#25231F" />
+            <SolidColorBrush x:Key="ReaderInkBrush" Color="#EEE5D4" />
+            <SolidColorBrush x:Key="ReaderMutedBrush" Color="#BFB39F" />
+            <SolidColorBrush x:Key="ReaderAccentBrush" Color="#D1AC79" />
+            <SolidColorBrush x:Key="ReaderRuleBrush" Color="#4A4337" />
+            <SolidColorBrush x:Key="ReaderHoverBrush" Color="#4A4030" />
+            <StaticResource x:Key="ReaderHoverInkBrush" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="HyperlinkForeground" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="HyperlinkForegroundPointerOver" ResourceKey="ReaderInkBrush" />
+            <StaticResource x:Key="HyperlinkForegroundPressed" ResourceKey="ReaderInkBrush" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <StaticResource x:Key="ReaderCanvasBrush" ResourceKey="SystemColorWindowBrush" />
+            <StaticResource x:Key="ReaderPaperBrush" ResourceKey="SystemColorWindowBrush" />
+            <StaticResource x:Key="ReaderNotesBrush" ResourceKey="SystemColorWindowBrush" />
+            <StaticResource x:Key="ReaderInkBrush" ResourceKey="SystemColorWindowTextBrush" />
+            <StaticResource x:Key="ReaderMutedBrush" ResourceKey="SystemColorWindowTextBrush" />
+            <StaticResource x:Key="ReaderAccentBrush" ResourceKey="SystemColorHotlightBrush" />
+            <StaticResource x:Key="ReaderRuleBrush" ResourceKey="SystemColorWindowTextBrush" />
+            <StaticResource x:Key="ReaderHoverBrush" ResourceKey="SystemColorHighlightBrush" />
+            <StaticResource x:Key="ReaderHoverInkBrush" ResourceKey="SystemColorHighlightTextBrush" />
+            <StaticResource x:Key="HyperlinkForeground" ResourceKey="SystemColorWindowTextBrush" />
+            <StaticResource x:Key="HyperlinkForegroundPointerOver" ResourceKey="SystemColorWindowTextBrush" />
+            <StaticResource x:Key="HyperlinkForegroundPressed" ResourceKey="SystemColorWindowTextBrush" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+    <Style x:Key="ReaderLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="CharacterSpacing" Value="180" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{ThemeResource ReaderMutedBrush}" />
+    </Style>
+</ResourceDictionary>

@@ -280,6 +280,35 @@ public sealed class StoryRepositoryTests : IDisposable
         Assert.Equal(0L, command.ExecuteScalar());
     }
 
+    [Fact]
+    public async Task TranslationUpdatePersistsOnlyEnglishForTheMatchingSentence()
+    {
+        var repository = new SqliteStoryRepository(DatabasePath);
+        var original = ValidStory();
+        original.Sentences[0].SpanishText = "  Érase una vez.\r\n\r\n ";
+        original.Sentences.Add(new() { SpanishText = "Fin.", EnglishText = "The end." });
+        var saved = await repository.AddAsync(original);
+        var other = await repository.AddAsync(ValidStory());
+        await repository.UpdateSentenceTranslationAsync(saved.Id, saved.Sentences[0].Id, "  Once upon a time.  ");
+        var reloaded = await new SqliteStoryRepository(DatabasePath).GetAllAsync();
+        var updated = Assert.Single(reloaded, item => item.Id == saved.Id);
+        Assert.Equal("Once upon a time.", updated.Sentences[0].EnglishText);
+        Assert.Equal("The end.", updated.Sentences[1].EnglishText);
+        Assert.Equal(saved.Sentences.Select(s => s.SpanishText), updated.Sentences.Select(s => s.SpanishText));
+        Assert.Equal(saved.Sentences.Select(s => s.Position), updated.Sentences.Select(s => s.Position));
+        Assert.Equal(saved.Title, updated.Title);
+        Assert.Equal(saved.DateAdded, updated.DateAdded);
+        Assert.Empty(Assert.Single(reloaded, item => item.Id == other.Id).Sentences[0].EnglishText);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            repository.UpdateSentenceTranslationAsync(other.Id, saved.Sentences[0].Id, "Wrong story"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            repository.UpdateSentenceTranslationAsync(saved.Id, long.MaxValue, "Missing sentence"));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            repository.UpdateSentenceTranslationAsync(saved.Id, saved.Sentences[0].Id, " \r\n "));
+        Assert.Equal("Once upon a time.", (await repository.GetAllAsync()).Single(item => item.Id == saved.Id).Sentences[0].EnglishText);
+    }
+
     private static Story ValidStory() => new()
     {
         Title = "Historia", Sentences = [new() { SpanishText = "Érase una vez." }]

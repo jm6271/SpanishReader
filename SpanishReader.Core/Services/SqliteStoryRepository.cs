@@ -131,6 +131,28 @@ public sealed class SqliteStoryRepository : IStoryRepository
         return stories;
     });
 
+    public Task UpdateSentenceTranslationAsync(long storyId, long sentenceId, string englishText)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(storyId);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sentenceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(englishText);
+        return ExecuteAsync(connection =>
+        {
+            using var command = connection.CreateCommand();
+            // Scope by both IDs: a sentence from another story must never be updated.
+            command.CommandText = """
+                UPDATE StorySentences SET EnglishText = $english
+                WHERE StoryId = $storyId AND Id = $sentenceId;
+                """;
+            command.Parameters.AddWithValue("$english", englishText.Trim());
+            command.Parameters.AddWithValue("$storyId", storyId);
+            command.Parameters.AddWithValue("$sentenceId", sentenceId);
+            if (command.ExecuteNonQuery() != 1)
+                throw new InvalidOperationException("The sentence no longer exists in this story.");
+            return true;
+        });
+    }
+
     private Task<T> ExecuteAsync<T>(Func<SqliteConnection, T> operation) => Task.Run(() =>
     {
         // The provider's async ADO methods still block. Keep I/O off the UI thread,

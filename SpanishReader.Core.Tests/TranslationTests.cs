@@ -68,6 +68,35 @@ public class TranslationTests(ITestOutputHelper output)
         }
     }
 
+    [Fact]
+    public async Task ReaderGeneratesMissingTranslationAndPersistsItAcrossRepositoryInstances()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "SpanishReader.Tests", Guid.NewGuid().ToString("N"));
+        var database = Path.Combine(directory, "Stories.db");
+        try
+        {
+            var repository = new SqliteStoryRepository(database);
+            var story = await repository.AddAsync(new Story
+            {
+                Title = "Prueba", Sentences = [new() { SpanishText = "  Hola, mundo.\r\n\r\n" }]
+            });
+            using var translation = new BergamotTranslationService(ConfigPath);
+            var reader = new ReadingPageViewModel(new ImportNavigation(), translation, repository);
+            reader.PrepareForDisplay(story);
+            await reader.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
+            Assert.Empty(reader.ErrorMessage);
+            Assert.Empty(reader.SaveWarningMessage);
+            Assert.Contains("hello", reader.SelectedEnglishText, StringComparison.OrdinalIgnoreCase);
+            var reloaded = Assert.Single(await new SqliteStoryRepository(database).GetAllAsync());
+            Assert.Equal(reader.SelectedEnglishText, reloaded.Sentences[0].EnglishText);
+            Assert.Equal(story.Sentences[0].SpanishText, reloaded.Sentences[0].SpanishText);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private sealed class ImportNavigation : INavigationService
     {
         public Story? Saved { get; private set; }

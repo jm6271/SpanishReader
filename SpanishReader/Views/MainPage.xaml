@@ -102,7 +102,7 @@
         <Grid Grid.Row="3" Margin="0,16,0,0">
             <ListView ItemsSource="{x:Bind ViewModel.Stories, Mode=OneWay}"
                       AutomationProperties.AutomationId="StoryLibrary" AutomationProperties.Name="Stories"
-                      SelectionMode="None" IsItemClickEnabled="True">
+                      SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnStoryClicked">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
                         <Setter Property="MaxWidth" Value="750" />

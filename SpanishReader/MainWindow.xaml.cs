@@ -29,6 +29,7 @@ namespace SpanishReader
             navigationService.SetFrame(RootFrame);
             navigationService.Register<MainPageViewModel, MainPage>();
             navigationService.Register<ImportPageViewModel, ImportPage>();
+            navigationService.Register<ReadingPageViewModel, ReadingPage>();
 
             navigationService.Navigate<MainPageViewModel>();
         }

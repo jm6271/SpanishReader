@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SpanishReader.Views.ReadingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SpanishReader.Views">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Themes/ReaderTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <!-- Resolve page-local palette resources after Page.Resources has loaded. -->
+    <Grid Background="{ThemeResource ReaderCanvasBrush}" SizeChanged="OnReaderSizeChanged">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="Wide" />
+                <VisualState x:Name="Narrow">
+                    <VisualState.Setters>
+                        <Setter Target="ReaderShell.Margin" Value="16,8,16,16" />
+                        <Setter Target="TranslationColumn.Width" Value="0" />
+                        <Setter Target="StoryRow.Height" Value="3*" />
+                        <Setter Target="TranslationRow.Height" Value="2*" />
+                        <Setter Target="TranslationPane.(Grid.Column)" Value="0" />
+                        <Setter Target="TranslationPane.(Grid.Row)" Value="1" />
+                        <Setter Target="TranslationPane.BorderThickness" Value="0,1,0,0" />
+                        <Setter Target="TranslationPane.Padding" Value="24,20" />
+                        <Setter Target="StoryPage.Padding" Value="24,28,24,20" />
+                        <Setter Target="StoryTitle.FontSize" Value="30" />
+                        <Setter Target="StoryHeading.Margin" Value="0,0,0,24" />
+                        <Setter Target="NotesLabel.Visibility" Value="Collapsed" />
+                        <Setter Target="TranslationHeading.FontSize" Value="22" />
+                        <Setter Target="TranslationPaneLayout.RowSpacing" Value="16" />
+                        <Setter Target="TranslationTextColumns.Width" Value="*" />
+                        <Setter Target="TranslationText.ColumnSpacing" Value="24" />
+                        <Setter Target="EnglishLabel.(Grid.Row)" Value="0" />
+                        <Setter Target="EnglishLabel.(Grid.Column)" Value="1" />
+                        <Setter Target="EnglishLabel.Margin" Value="0" />
+                        <Setter Target="EnglishText.(Grid.Row)" Value="1" />
+                        <Setter Target="EnglishText.(Grid.Column)" Value="1" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Grid x:Name="ReaderShell" Margin="32,12,32,32" MaxWidth="1220">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Navigation belongs in the quiet outer margin, away from the title. -->
+            <Grid Margin="0,0,0,12">
+                <Button Command="{x:Bind ViewModel.BackCommand}" Style="{StaticResource SubtleButtonStyle}"
+                        Foreground="{ThemeResource ReaderMutedBrush}" Padding="12,8" Margin="-12,0,0,0"
+                        HorizontalAlignment="Left" MinHeight="36"
+                        AutomationProperties.AutomationId="ReaderBack" AutomationProperties.Name="Back to library"
+                        ToolTipService.ToolTip="Back to library">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72B;" FontSize="12" />
+                        <TextBlock Text="Library" FontSize="13" />
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="ESPAÑOL  /  ENGLISH" Style="{StaticResource ReaderLabelStyle}"
+                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0" />
+            </Grid>
+
+            <Border Grid.Row="1" Background="{ThemeResource ReaderPaperBrush}" CornerRadius="4"
+                    BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1">
+                <Grid x:Name="ReadingLayout">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition x:Name="TranslationColumn" Width="320" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition x:Name="StoryRow" Height="*" />
+                        <RowDefinition x:Name="TranslationRow" Height="0" />
+                    </Grid.RowDefinitions>
+
+                    <Border x:Name="StoryPage" Padding="48,40,48,32">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <StackPanel x:Name="StoryHeading" Spacing="12" Margin="0,0,0,32" MaxWidth="680">
+                                <TextBlock x:Name="StoryTitle" Text="{x:Bind ViewModel.Title, Mode=OneWay}" Language="es"
+                                           FontFamily="Georgia" FontSize="36" FontWeight="Normal" TextWrapping="Wrap"
+                                           TextAlignment="Center" Foreground="{ThemeResource ReaderInkBrush}"
+                                           AutomationProperties.HeadingLevel="Level1" AutomationProperties.AutomationId="ReaderTitle" />
+                                <TextBlock Text="{x:Bind ViewModel.EnglishTitle, Mode=OneWay}" Language="en"
+                                           FontFamily="Georgia" FontSize="18" FontStyle="Italic" TextWrapping="Wrap"
+                                           TextAlignment="Center" Foreground="{ThemeResource ReaderMutedBrush}"
+                                           Visibility="{x:Bind local:UiHelpers.WhenHasText(ViewModel.EnglishTitle), Mode=OneWay}"
+                                           AutomationProperties.AutomationId="ReaderEnglishTitle" />
+                                <Border Height="1" Width="48" Margin="0,12,0,0" HorizontalAlignment="Center"
+                                        Background="{ThemeResource ReaderAccentBrush}" />
+                            </StackPanel>
+
+                            <ScrollViewer x:Name="StoryScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch"
+                                          AutomationProperties.Name="Story text">
+                                <RichTextBlock x:Name="StoryContent" FontFamily="Georgia" FontSize="21" LineHeight="36"
+                                               Language="es" Foreground="{ThemeResource ReaderInkBrush}"
+                                               MaxWidth="680" Padding="0,0,12,16" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                               AutomationProperties.AutomationId="ReaderStory" AutomationProperties.Name="Spanish story">
+                                    <RichTextBlock.TextHighlighters>
+                                        <TextHighlighter x:Name="SentenceHighlight"
+                                                         Background="{ThemeResource ReaderHoverBrush}"
+                                                         Foreground="{ThemeResource ReaderHoverInkBrush}" />
+                                    </RichTextBlock.TextHighlighters>
+                                </RichTextBlock>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <!-- A ruled notes margin shares the paper surface instead of
+                         looking like a separate dashboard card. -->
+                    <Border x:Name="TranslationPane" Grid.Column="1" Padding="28,40,24,28"
+                            Background="{ThemeResource ReaderNotesBrush}"
+                            BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1,0,0,0">
+                        <Grid x:Name="TranslationPaneLayout" RowSpacing="24">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Spacing="12">
+                                <TextBlock x:Name="NotesLabel" Text="READING NOTES" Style="{StaticResource ReaderLabelStyle}" />
+                                <TextBlock x:Name="TranslationHeading" Text="Translation" FontFamily="Georgia" FontSize="26"
+                                           Foreground="{ThemeResource ReaderInkBrush}"
+                                           AutomationProperties.HeadingLevel="Level2" />
+                                <Border Height="1" Background="{ThemeResource ReaderRuleBrush}" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <ScrollViewer x:Name="TranslationScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch"
+                                          AutomationProperties.Name="Sentence translation">
+                                <StackPanel Spacing="20" Padding="0,0,8,12">
+                                    <TextBlock Text="Select a sentence to read its English translation." TextWrapping="Wrap"
+                                               FontFamily="Georgia" FontSize="17" FontStyle="Italic" LineHeight="27"
+                                               Foreground="{ThemeResource ReaderMutedBrush}"
+                                               Visibility="{x:Bind local:UiHelpers.WhenNot(ViewModel.HasSelection), Mode=OneWay}"
+                                               AutomationProperties.AutomationId="ReaderPrompt" />
+                                    <Grid x:Name="TranslationText" RowSpacing="12" Visibility="{x:Bind local:UiHelpers.When(ViewModel.HasSelection), Mode=OneWay}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition x:Name="TranslationTextColumns" Width="0" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="ESPAÑOL" Style="{StaticResource ReaderLabelStyle}" />
+                                        <TextBlock Grid.Row="1" Text="{x:Bind ViewModel.SelectedSpanishText, Mode=OneWay}" Language="es"
+                                                   FontFamily="Georgia" FontSize="18" FontStyle="Italic" LineHeight="29"
+                                                   Foreground="{ThemeResource ReaderMutedBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                                   AutomationProperties.AutomationId="SelectedSpanish" />
+                                        <TextBlock x:Name="EnglishLabel" Grid.Row="2" Text="ENGLISH" Margin="0,16,0,0" Style="{StaticResource ReaderLabelStyle}" />
+                                        <TextBlock x:Name="EnglishText" Grid.Row="3" Text="{x:Bind ViewModel.SelectedEnglishText, Mode=OneWay}" Language="en"
+                                                   FontFamily="Georgia" FontSize="21" LineHeight="32"
+                                                   Foreground="{ThemeResource ReaderInkBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                                   AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="SelectedEnglish" />
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsBusy), Mode=OneWay}">
+                                        <ProgressRing Width="16" Height="16" Foreground="{ThemeResource ReaderAccentBrush}"
+                                                      IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                                                      AutomationProperties.Name="Translating and saving sentence" />
+                                        <TextBlock Text="Translating and saving…" FontSize="12" VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource ReaderMutedBrush}" />
+                                    </StackPanel>
+                                    <InfoBar IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
+                                             Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" Severity="Error" IsClosable="False"
+                                             AutomationProperties.AutomationId="ReaderTranslationError" />
+                                    <InfoBar IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.SaveWarningMessage), Mode=OneWay}"
+                                             Message="{x:Bind ViewModel.SaveWarningMessage, Mode=OneWay}" Severity="Warning" IsClosable="False"
+                                             AutomationProperties.AutomationId="ReaderSaveWarning" />
+                                    <Button Content="Retry" Command="{x:Bind ViewModel.RetryCommand}"
+                                            Style="{StaticResource SubtleButtonStyle}" Foreground="{ThemeResource ReaderInkBrush}"
+                                            Visibility="{x:Bind local:UiHelpers.When(ViewModel.CanRetry), Mode=OneWay}"
+                                            AutomationProperties.AutomationId="ReaderRetry" AutomationProperties.Name="Retry translation or save" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

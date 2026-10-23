@@ -27,8 +27,10 @@ namespace SpanishReader.Views
 
         public void OnNavigatedTo(object? parameter)
         {
-            if (parameter is Story story)
-                ViewModel.PrepareForDisplay(story);
+            ViewModel.PrepareForDisplay(parameter as Story);
         }
+
+        private void OnStoryClicked(object sender, ItemClickEventArgs e) =>
+            ViewModel.OpenStoryCommand.Execute(e.ClickedItem as Story);
     }
 }

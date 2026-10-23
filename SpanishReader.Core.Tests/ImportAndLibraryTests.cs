@@ -294,6 +294,9 @@ public class ImportAndLibraryTests
 
     private sealed class FakeRepository : IStoryRepository
     {
+        public Task UpdateSentenceTranslationAsync(long storyId, long sentenceId, string englishText) =>
+            throw new NotSupportedException();
+
         public int AddCalls { get; private set; }
         public Story? Saved { get; private set; }
         public Exception? AddFailure { get; set; }

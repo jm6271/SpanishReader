@@ -74,4 +74,10 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
 
     [RelayCommand]
     private void ImportStory() => navigationService.Navigate<ImportPageViewModel>();
+
+    [RelayCommand]
+    private void OpenStory(Story? story)
+    {
+        if (story is not null) navigationService.Navigate<ReadingPageViewModel>(story);
+    }
 }
