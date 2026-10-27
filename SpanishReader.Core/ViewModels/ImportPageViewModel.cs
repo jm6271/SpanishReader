@@ -100,7 +100,7 @@ public partial class ImportPageViewModel(
         // A committed insert is never retried because navigation or the next load failed.
         Title = EnglishTitle = Author = StoryText = string.Empty;
         Level = CEFR.A1;
-        navigationService.Navigate<MainPageViewModel>(saved);
+        navigationService.Navigate<MainPageViewModel>(new LibraryChange(saved, LibraryChangeKind.Imported));
     }
 
     [RelayCommand(CanExecute = nameof(CanEdit))]

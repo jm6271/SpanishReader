@@ -50,6 +50,7 @@
                     </StackPanel>
 
                     <CommandBar Grid.Row="1" Background="Transparent" Foreground="{ThemeResource ReaderInkBrush}"
+                                IsEnabled="{x:Bind ViewModel.CanUseLibrary, Mode=OneWay}"
                                 DefaultLabelPosition="Right" VerticalContentAlignment="Center" IsDynamicOverflowEnabled="True">
                         <CommandBar.Content>
                             <AutoSuggestBox
@@ -111,6 +112,13 @@
                     <!-- Closed InfoBars still occupy a StackPanel slot. Avoid
                          spacing between slots so a quiet library has no empty status band. -->
                     <StackPanel Grid.Row="2">
+                        <InfoBar Severity="Error" IsClosable="True"
+                                 IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ActionErrorMessage), Mode=OneWay}"
+                                 Message="{x:Bind ViewModel.ActionErrorMessage, Mode=OneWay}"
+                                 AutomationProperties.AutomationId="LibraryActionError" />
+                        <ProgressBar IsIndeterminate="True" Foreground="{ThemeResource ReaderAccentBrush}"
+                                     AutomationProperties.Name="Deleting story"
+                                     Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsDeleting), Mode=OneWay}" />
                         <InfoBar Severity="Success" IsClosable="True"
                                  IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.SuccessMessage), Mode=OneWay}"
                                  Message="{x:Bind ViewModel.SuccessMessage, Mode=OneWay}"
@@ -139,6 +147,7 @@
 
                     <Border Grid.Row="3" Margin="0,8,0,0" BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="0,1,0,0">
                         <ListView ItemsSource="{x:Bind ViewModel.Stories, Mode=OneWay}"
+                                  IsEnabled="{x:Bind ViewModel.CanUseLibrary, Mode=OneWay}"
                                   Padding="0,4,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                   AutomationProperties.AutomationId="StoryLibrary" AutomationProperties.Name="Stories"
                                   SelectionMode="None" IsItemClickEnabled="True" ItemClick="OnStoryClicked">
@@ -210,6 +219,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
                                         <Grid.RowDefinitions>
@@ -241,6 +251,28 @@
 
                                             <TextBlock Text="{x:Bind Level, Mode=OneTime}" FontSize="11" CharacterSpacing="100" FontWeight="SemiBold" VerticalAlignment="Center" />
                                         </Border>
+                                        <!-- A native Button consumes activation so its menu does
+                                             not trigger the containing story's ItemClick. -->
+                                        <Button Grid.Column="2" Grid.RowSpan="3" VerticalAlignment="Top" Margin="8,0,0,0"
+                                                Style="{StaticResource SubtleButtonStyle}"
+                                                Foreground="{ThemeResource ReaderInkBrush}"
+                                                AutomationProperties.AutomationId="StoryActions"
+                                                AutomationProperties.Name="{x:Bind local:MainPage.StoryActionsName(Title), Mode=OneTime}"
+                                                ToolTipService.ToolTip="Story actions">
+                                            <FontIcon Glyph="&#xE712;" FontSize="16" />
+                                            <Button.Flyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem Text="Edit" Tag="{x:Bind}" Click="OnEditStoryClicked"
+                                                                    AutomationProperties.AutomationId="EditStory">
+                                                        <MenuFlyoutItem.Icon><SymbolIcon Symbol="Edit" /></MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                    <MenuFlyoutItem Text="Delete" Tag="{x:Bind}" Click="OnDeleteStoryClicked"
+                                                                    AutomationProperties.AutomationId="DeleteStory">
+                                                        <MenuFlyoutItem.Icon><SymbolIcon Symbol="Delete" /></MenuFlyoutItem.Icon>
+                                                    </MenuFlyoutItem>
+                                                </MenuFlyout>
+                                            </Button.Flyout>
+                                        </Button>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>

@@ -37,7 +37,9 @@ public class ImportAndLibraryTests
         await vm.SaveCommand.ExecuteAsync(null);
         Assert.Equal(1, repository.AddCalls);
         Assert.Equal(typeof(MainPageViewModel), navigation.Target);
-        Assert.Same(repository.Saved, navigation.Parameter);
+        var change = Assert.IsType<LibraryChange>(navigation.Parameter);
+        Assert.Equal(LibraryChangeKind.Imported, change.Kind);
+        Assert.Same(repository.Saved, change.Story);
         Assert.Empty(vm.Title);
         Assert.Empty(vm.EnglishTitle);
         Assert.Empty(vm.Author);
@@ -294,6 +296,8 @@ public class ImportAndLibraryTests
 
     private sealed class FakeRepository : IStoryRepository
     {
+        public Task<Story> UpdateAsync(Story story) => throw new NotSupportedException();
+        public Task DeleteAsync(long storyId) => throw new NotSupportedException();
         public Task UpdateSentenceTranslationAsync(long storyId, long sentenceId, string englishText) =>
             throw new NotSupportedException();
 

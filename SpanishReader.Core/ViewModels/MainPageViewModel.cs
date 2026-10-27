@@ -21,18 +21,33 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
 
     [ObservableProperty] public partial string SuccessMessage { get; set; } = string.Empty;
     [ObservableProperty] public partial string ImportWarningMessage { get; set; } = string.Empty;
+    [ObservableProperty] public partial string ActionErrorMessage { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUseLibrary))]
+    [NotifyCanExecuteChangedFor(nameof(EditStoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteStoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenStoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ImportStoryCommand))]
+    public partial bool IsDeleting { get; set; }
+
+    public bool CanUseLibrary => !IsDeleting;
     public bool IsEmpty => !IsLoading && ErrorMessage.Length == 0 && Stories.Count == 0;
 
     // Navigation delivers a saved story before this singleton page loads.
-    public void PrepareForDisplay(Story? importedStory)
+    public void PrepareForDisplay(object? parameter)
     {
-        SuccessMessage = ImportWarningMessage = string.Empty;
-        if (importedStory is null) return;
-        var missing = importedStory.Sentences.Count(sentence => string.IsNullOrWhiteSpace(sentence.EnglishText));
+        SuccessMessage = ImportWarningMessage = ActionErrorMessage = string.Empty;
+        // Accept a bare Story for existing navigation callers as an import.
+        var change = parameter as LibraryChange;
+        var story = change?.Story ?? parameter as Story;
+        if (story is null) return;
+        var verb = change?.Kind == LibraryChangeKind.Updated ? "Updated" : "Imported";
+        var missing = story.Sentences.Count(sentence => string.IsNullOrWhiteSpace(sentence.EnglishText));
         if (missing == 0)
-            SuccessMessage = $"Imported “{importedStory.Title}”.";
+            SuccessMessage = $"{verb} “{story.Title}”.";
         else
-            ImportWarningMessage = $"Imported “{importedStory.Title}”. " +
+            ImportWarningMessage = $"{verb} “{story.Title}”. " +
                 (missing == 1 ? "1 sentence has no English translation." : $"{missing} sentences have no English translation.");
     }
 
@@ -72,12 +87,44 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseLibrary))]
     private void ImportStory() => navigationService.Navigate<ImportPageViewModel>();
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseLibrary))]
     private void OpenStory(Story? story)
     {
         if (story is not null) navigationService.Navigate<ReadingPageViewModel>(story);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseLibrary))]
+    private void EditStory(Story? story)
+    {
+        if (story is not null) navigationService.Navigate<EditStoryPageViewModel>(story);
+    }
+
+    // The WinUI page asks for confirmation before executing this command.
+    [RelayCommand(CanExecute = nameof(CanUseLibrary))]
+    private async Task DeleteStoryAsync(Story? story)
+    {
+        if (story is null || IsDeleting) return;
+        IsDeleting = true;
+        SuccessMessage = ImportWarningMessage = ActionErrorMessage = string.Empty;
+        try
+        {
+            await repository.DeleteAsync(story.Id);
+            Stories.Remove(story);
+            OnPropertyChanged(nameof(IsEmpty));
+            SuccessMessage = $"Deleted “{story.Title}”.";
+            // Queue a final read even if an earlier snapshot is still loading.
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            ActionErrorMessage = $"“{story.Title}” could not be deleted. Please try Delete again.";
+        }
+        finally
+        {
+            IsDeleting = false;
+        }
     }
 }

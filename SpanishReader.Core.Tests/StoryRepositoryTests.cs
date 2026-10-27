@@ -1,6 +1,8 @@
 using Microsoft.Data.Sqlite;
+using SpanishReader.Core.Abstractions;
 using SpanishReader.Core.Models;
 using SpanishReader.Core.Services;
+using SpanishReader.Core.ViewModels;
 
 namespace SpanishReader.Core.Tests;
 
@@ -19,7 +21,7 @@ public sealed class StoryRepositoryTests : IDisposable
         using var connection = Open();
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version;";
-        Assert.Equal(2L, command.ExecuteScalar());
+        Assert.Equal(3L, command.ExecuteScalar());
     }
 
     [Theory]
@@ -120,14 +122,14 @@ public sealed class StoryRepositoryTests : IDisposable
         using (var connection = Open())
         using (var command = connection.CreateCommand())
         {
-            command.CommandText = "PRAGMA user_version = 3;";
+            command.CommandText = "PRAGMA user_version = 4;";
             command.ExecuteNonQuery();
         }
         await Assert.ThrowsAsync<InvalidDataException>(() => new SqliteStoryRepository(DatabasePath).GetAllAsync());
         using var check = Open();
         using var query = check.CreateCommand();
         query.CommandText = "PRAGMA user_version;";
-        Assert.Equal(3L, query.ExecuteScalar());
+        Assert.Equal(4L, query.ExecuteScalar());
     }
 
     [Fact]
@@ -188,7 +190,7 @@ public sealed class StoryRepositoryTests : IDisposable
         query.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Stories') WHERE name = 'StoryText';";
         Assert.Equal(0L, query.ExecuteScalar());
         query.CommandText = "PRAGMA user_version;";
-        Assert.Equal(2L, query.ExecuteScalar());
+        Assert.Equal(3L, query.ExecuteScalar());
     }
 
     [Fact]
@@ -307,6 +309,247 @@ public sealed class StoryRepositoryTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() =>
             repository.UpdateSentenceTranslationAsync(saved.Id, saved.Sentences[0].Id, " \r\n "));
         Assert.Equal("Once upon a time.", (await repository.GetAllAsync()).Single(item => item.Id == saved.Id).Sentences[0].EnglishText);
+    }
+
+    [Fact]
+    public async Task MetadataUpdateKeepsIdentityDateAndLatestTranslation()
+    {
+        var repository = new SqliteStoryRepository(DatabasePath);
+        var saved = await repository.AddAsync(ValidStory());
+        var draft = StoryEditing.Snapshot(saved);
+        await repository.UpdateSentenceTranslationAsync(saved.Id, saved.Sentences[0].Id, "Latest English");
+        draft.Title = "  Editada  ";
+        draft.EnglishTitle = "  Edited  ";
+        draft.Author = "  María  ";
+        draft.Level = CEFR.C1;
+        draft.DateAdded = DateTime.MinValue;
+        var updated = await repository.UpdateAsync(draft);
+        Assert.Equal(saved.Id, updated.Id);
+        Assert.Equal(saved.DateAdded, updated.DateAdded);
+        Assert.Equal(saved.Sentences[0].Id, updated.Sentences[0].Id);
+        Assert.Equal("Latest English", updated.Sentences[0].EnglishText);
+        var loaded = Assert.Single(await new SqliteStoryRepository(DatabasePath).GetAllAsync());
+        Assert.Equal("Editada", loaded.Title);
+        Assert.Equal("Edited", loaded.EnglishTitle);
+        Assert.Equal("María", loaded.Author);
+        Assert.Equal(CEFR.C1, loaded.Level);
+        Assert.Equal(saved.DateAdded, loaded.DateAdded);
+        Assert.Equal(DateTime.MinValue, draft.DateAdded);
+        Assert.Empty(draft.Sentences[0].EnglishText);
+    }
+
+    [Fact]
+    public async Task TextUpdateReplacesIdsPreservesLatestMatchingTranslationsAndDoesNotMutateDraft()
+    {
+        var repository = new SqliteStoryRepository(DatabasePath);
+        var input = ValidStory();
+        input.Sentences =
+        [
+            new() { SpanishText = "Hola. ", EnglishText = "First" },
+            new() { SpanishText = "Hola. ", EnglishText = "Second" },
+            new() { SpanishText = "Vieja.", EnglishText = "Old" }
+        ];
+        var saved = await repository.AddAsync(input);
+        var draft = StoryEditing.Snapshot(saved);
+        draft.Title = "Nueva";
+        draft.Sentences =
+        [
+            new() { SpanishText = "\nHola.\n\n", EnglishText = "Stale" },
+            new() { SpanishText = "Nueva. ", EnglishText = "New" },
+            new() { SpanishText = "Hola.", EnglishText = "Stale" }
+        ];
+        await repository.UpdateSentenceTranslationAsync(saved.Id, saved.Sentences[0].Id, "Latest first");
+        var pending = repository.UpdateAsync(draft);
+        draft.Sentences[1].SpanishText = "Mutated after dispatch";
+        var updated = await pending;
+        Assert.Equal(new[] { "Latest first", "New", "Second" }, updated.Sentences.Select(s => s.EnglishText));
+        Assert.Equal(new[] { 0, 1, 2 }, updated.Sentences.Select(s => s.Position));
+        Assert.Equal("Nueva. ", updated.Sentences[1].SpanishText);
+        Assert.All(updated.Sentences, sentence => Assert.True(sentence.Id > saved.Sentences.Max(s => s.Id)));
+        Assert.All(draft.Sentences, sentence => Assert.Equal(0, sentence.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            repository.UpdateSentenceTranslationAsync(saved.Id, saved.Sentences[0].Id, "Late stale result"));
+        var loaded = Assert.Single(await repository.GetAllAsync());
+        Assert.Equal(saved.DateAdded, loaded.DateAdded);
+        Assert.Equal(updated.Sentences.Select(s => s.SpanishText), loaded.Sentences.Select(s => s.SpanishText));
+    }
+
+    [Fact]
+    public async Task FailedTextUpdateRollsBackMetadataAndAllSentences()
+    {
+        var repository = new SqliteStoryRepository(DatabasePath);
+        var saved = await repository.AddAsync(ValidStory());
+        using (var connection = Open())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                CREATE TRIGGER RejectReplacement BEFORE INSERT ON StorySentences
+                WHEN NEW.Position = 1 BEGIN SELECT RAISE(ABORT, 'Simulated failure'); END;
+                """;
+            command.ExecuteNonQuery();
+        }
+        var draft = StoryEditing.Snapshot(saved);
+        draft.Title = "Should roll back";
+        draft.Sentences = [new() { SpanishText = "Nueva." }, new() { SpanishText = "Otra." }];
+        await Assert.ThrowsAsync<SqliteException>(() => repository.UpdateAsync(draft));
+        var loaded = Assert.Single(await repository.GetAllAsync());
+        Assert.Equal(saved.Title, loaded.Title);
+        Assert.Equal(saved.DateAdded, loaded.DateAdded);
+        Assert.Equal(saved.Sentences[0].Id, Assert.Single(loaded.Sentences).Id);
+        Assert.Equal(saved.Sentences[0].SpanishText, loaded.Sentences[0].SpanishText);
+    }
+
+    [Fact]
+    public async Task DeleteCascadesAndFutureImportsNeverReuseStoryOrSentenceIds()
+    {
+        var repository = new SqliteStoryRepository(DatabasePath);
+        var first = await repository.AddAsync(ValidStory());
+        await repository.DeleteAsync(first.Id);
+        Assert.Empty(await repository.GetAllAsync());
+        using (var connection = Open())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT count(*) FROM StorySentences;";
+            Assert.Equal(0L, command.ExecuteScalar());
+        }
+        var next = await new SqliteStoryRepository(DatabasePath).AddAsync(ValidStory());
+        Assert.True(next.Id > first.Id);
+        Assert.True(next.Sentences[0].Id > first.Sentences[0].Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.DeleteAsync(first.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.UpdateAsync(first));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => repository.DeleteAsync(0));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => repository.UpdateAsync(ValidStory()));
+        var invalid = StoryEditing.Snapshot(next);
+        invalid.Title = " ";
+        await Assert.ThrowsAsync<ArgumentException>(() => repository.UpdateAsync(invalid));
+        Assert.Equal(next.Title, Assert.Single(await repository.GetAllAsync()).Title);
+    }
+
+    [Fact]
+    public async Task VersionTwoMigrationPreservesAllDataAndForeignKeys()
+    {
+        await CreateVersionTwoDatabase();
+        var repository = new SqliteStoryRepository(DatabasePath);
+        var story = Assert.Single(await repository.GetAllAsync());
+        Assert.Equal(42, story.Id);
+        Assert.Equal("Título", story.Title);
+        Assert.Equal("Title", story.EnglishTitle);
+        Assert.Equal("María", story.Author);
+        Assert.Equal(CEFR.B2, story.Level);
+        Assert.Equal(DateTime.Parse("2026-01-01T00:00:00Z").ToUniversalTime(), story.DateAdded);
+        Assert.Equal(81, Assert.Single(story.Sentences).Id);
+        Assert.Equal("  Hola.\n\n", story.Sentences[0].SpanishText);
+        Assert.Equal("Hello.", story.Sentences[0].EnglishText);
+        using (var connection = Open())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA foreign_key_check;";
+            Assert.Null(command.ExecuteScalar());
+        }
+        await repository.DeleteAsync(story.Id);
+        var next = await repository.AddAsync(ValidStory());
+        Assert.True(next.Id > 42);
+        Assert.True(next.Sentences[0].Id > 81);
+        Assert.Equal(next.Id, Assert.Single(await new SqliteStoryRepository(DatabasePath).GetAllAsync()).Id);
+    }
+
+    [Fact]
+    public async Task FailedVersionTwoMigrationPreservesOriginalSchemaAndData()
+    {
+        await CreateVersionTwoDatabase();
+        using (var connection = Open())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "CREATE TABLE StorySentences_v3 (Conflict TEXT);";
+            command.ExecuteNonQuery();
+        }
+        await Assert.ThrowsAsync<SqliteException>(() => new SqliteStoryRepository(DatabasePath).GetAllAsync());
+        using var check = Open();
+        using var query = check.CreateCommand();
+        query.CommandText = "PRAGMA user_version;";
+        Assert.Equal(2L, query.ExecuteScalar());
+        query.CommandText = "SELECT SpanishText FROM StorySentences WHERE Id = 81;";
+        Assert.Equal("  Hola.\n\n", query.ExecuteScalar());
+        query.CommandText = "SELECT count(*) FROM sqlite_master WHERE name = 'Stories_v3';";
+        Assert.Equal(0L, query.ExecuteScalar());
+    }
+
+    private Task CreateVersionTwoDatabase()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(DatabasePath)!);
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE Stories (
+                Id INTEGER PRIMARY KEY, Title TEXT NOT NULL, EnglishTitle TEXT NOT NULL DEFAULT '',
+                Level TEXT NOT NULL, Author TEXT NOT NULL DEFAULT '', DateAdded TEXT NOT NULL
+            );
+            CREATE TABLE StorySentences (
+                Id INTEGER PRIMARY KEY, StoryId INTEGER NOT NULL REFERENCES Stories(Id) ON DELETE CASCADE,
+                Position INTEGER NOT NULL, SpanishText TEXT NOT NULL, EnglishText TEXT NOT NULL DEFAULT '',
+                UNIQUE (StoryId, Position)
+            );
+            INSERT INTO Stories VALUES (42, 'Título', 'Title', 'B2', 'María', '2026-01-01T00:00:00.0000000Z');
+            INSERT INTO StorySentences VALUES (81, 42, 0, $spanish, 'Hello.');
+            PRAGMA user_version = 2;
+            """;
+        command.Parameters.AddWithValue("$spanish", "  Hola.\n\n");
+        command.ExecuteNonQuery();
+        return Task.CompletedTask;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LateReaderTranslationCannotOverwriteEditedOrReimportedContent(bool delete)
+    {
+        var repository = new SqliteStoryRepository(DatabasePath);
+        var saved = await repository.AddAsync(ValidStory());
+        var translation = new PendingTranslation();
+        var reader = new ReadingPageViewModel(new NoNavigation(), translation, repository);
+        reader.PrepareForDisplay(saved);
+        var pending = reader.SelectSentenceCommand.ExecuteAsync(saved.Sentences[0]);
+        reader.Deactivate();
+        Story replacement;
+        if (delete)
+        {
+            await repository.DeleteAsync(saved.Id);
+            replacement = await repository.AddAsync(ValidStory());
+        }
+        else
+        {
+            var draft = StoryEditing.Snapshot(saved);
+            draft.Sentences = [new() { SpanishText = "Texto cambiado.", EnglishText = "Changed text." }];
+            replacement = await repository.UpdateAsync(draft);
+        }
+        reader.PrepareForDisplay(replacement);
+        translation.Pending.SetResult("Old English");
+        await pending;
+        Assert.Empty(reader.SelectedEnglishText);
+        var loaded = Assert.Single(await repository.GetAllAsync());
+        Assert.Equal(replacement.Sentences[0].EnglishText, loaded.Sentences[0].EnglishText);
+        // Reopening uses replacement IDs, so no completed work from the old
+        // sentence can override its stored English or skip a missing translation.
+        reader.PrepareForDisplay(loaded);
+        await reader.SelectSentenceCommand.ExecuteAsync(loaded.Sentences[0]);
+        Assert.Equal(delete ? 2 : 1, translation.Calls);
+        Assert.Equal(delete ? "Old English" : "Changed text.", reader.SelectedEnglishText);
+    }
+
+    private sealed class PendingTranslation : ITranslationService
+    {
+        public TaskCompletionSource<string> Pending { get; } = new();
+        public int Calls { get; private set; }
+        public Task<string> TranslateAsync(string spanish, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            return Pending.Task;
+        }
+    }
+
+    private sealed class NoNavigation : INavigationService
+    {
+        public void Navigate<T>(object? parameter = null) where T : class { }
     }
 
     private static Story ValidStory() => new()

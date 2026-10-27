@@ -55,6 +55,8 @@ namespace SpanishReader
             services.AddSingleton<MainWindow>();
             services.AddSingleton<ImportPage>();
             services.AddSingleton<ImportPageViewModel>();
+            services.AddSingleton<EditStoryPage>();
+            services.AddSingleton<EditStoryPageViewModel>();
             services.AddSingleton<ReadingPage>();
             services.AddSingleton<ReadingPageViewModel>();
 

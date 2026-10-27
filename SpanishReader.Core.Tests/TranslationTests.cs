@@ -100,7 +100,7 @@ public class TranslationTests(ITestOutputHelper output)
     private sealed class ImportNavigation : INavigationService
     {
         public Story? Saved { get; private set; }
-        public void Navigate<T>(object? parameter = null) where T : class => Saved = Assert.IsType<Story>(parameter);
+        public void Navigate<T>(object? parameter = null) where T : class => Saved = Assert.IsType<LibraryChange>(parameter).Story;
     }
 
     [Fact]

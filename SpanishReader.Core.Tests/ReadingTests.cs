@@ -258,6 +258,8 @@ public class ReadingTests
 
     private sealed class FakeRepository : IStoryRepository
     {
+        public Task<Story> UpdateAsync(Story story) => throw new NotSupportedException();
+        public Task DeleteAsync(long storyId) => throw new NotSupportedException();
         public List<(long StoryId, long SentenceId, string English)> Updates { get; } = [];
         public Func<Task> Save { get; set; } = () => Task.CompletedTask;
         public Task UpdateSentenceTranslationAsync(long storyId, long sentenceId, string englishText)
