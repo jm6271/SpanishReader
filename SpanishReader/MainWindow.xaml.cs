@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using SpanishReader.Core.ViewModels;
 using SpanishReader.Services;
@@ -23,6 +24,11 @@ namespace SpanishReader
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
 
+            // Native caption buttons otherwise follow the Windows theme, which can
+            // differ from the app's theme (for example, a light app on a dark desktop).
+            AppTitleBar.ActualThemeChanged += (_, _) => UpdateTitleBarTheme();
+            UpdateTitleBarTheme();
+
             AppWindow.SetIcon("Assets/AppIcon.ico");
 
             var navigationService = ((App)Application.Current).Services.GetRequiredService<NavigationService>();
@@ -33,6 +39,13 @@ namespace SpanishReader
             navigationService.Register<ReadingPageViewModel, ReadingPage>();
 
             navigationService.Navigate<MainPageViewModel>();
+        }
+
+        private void UpdateTitleBarTheme()
+        {
+            AppWindow.TitleBar.PreferredTheme = AppTitleBar.ActualTheme == ElementTheme.Dark
+                ? TitleBarTheme.Dark
+                : TitleBarTheme.Light;
         }
     }
 }
