@@ -9,14 +9,26 @@ namespace SpanishReader.Core.ViewModels;
 public partial class MainPageViewModel(IStoryRepository repository, INavigationService navigationService) : ObservableObject
 {
     private bool _reloadRequested;
+    // Keep the complete snapshot so changing criteria can restore hidden stories.
+    private readonly List<Story> _allStories = [];
+
+    [ObservableProperty] public partial LibrarySortOrder SelectedSortOrder { get; set; } = LibrarySortOrder.NewestFirst;
+    [ObservableProperty] public partial CEFR? SelectedLevel { get; set; }
+    [ObservableProperty] public partial string SearchText { get; set; } = string.Empty;
+
+    partial void OnSelectedSortOrderChanged(LibrarySortOrder value) => RefreshVisibleStories();
+    partial void OnSelectedLevelChanged(CEFR? value) => RefreshVisibleStories();
+    partial void OnSearchTextChanged(string value) => RefreshVisibleStories();
     public ObservableCollection<Story> Stories { get; } = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEmpty))]
+    [NotifyPropertyChangedFor(nameof(HasNoResults))]
     public partial bool IsLoading { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEmpty))]
+    [NotifyPropertyChangedFor(nameof(HasNoResults))]
     public partial string ErrorMessage { get; set; } = string.Empty;
 
     [ObservableProperty] public partial string SuccessMessage { get; set; } = string.Empty;
@@ -32,7 +44,29 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
     public partial bool IsDeleting { get; set; }
 
     public bool CanUseLibrary => !IsDeleting;
-    public bool IsEmpty => !IsLoading && ErrorMessage.Length == 0 && Stories.Count == 0;
+    public bool IsEmpty => !IsLoading && ErrorMessage.Length == 0 && _allStories.Count == 0;
+    public bool HasNoResults => !IsLoading && ErrorMessage.Length == 0 && _allStories.Count > 0 && Stories.Count == 0;
+
+    private void RefreshVisibleStories()
+    {
+        var query = SearchText.Trim();
+        var matches = _allStories.Where(story =>
+            (SelectedLevel is null || story.Level == SelectedLevel) &&
+            (query.Length == 0 || story.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+             story.EnglishTitle.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+             story.Author.Contains(query, StringComparison.OrdinalIgnoreCase)));
+        var ordered = SelectedSortOrder switch
+        {
+            LibrarySortOrder.OldestFirst => matches.OrderBy(s => s.DateAdded).ThenBy(s => s.Id),
+            LibrarySortOrder.CefrAscending => matches.OrderBy(s => s.Level).ThenByDescending(s => s.DateAdded).ThenByDescending(s => s.Id),
+            LibrarySortOrder.CefrDescending => matches.OrderByDescending(s => s.Level).ThenByDescending(s => s.DateAdded).ThenByDescending(s => s.Id),
+            _ => matches.OrderByDescending(s => s.DateAdded).ThenByDescending(s => s.Id)
+        };
+        Stories.Clear();
+        foreach (var story in ordered) Stories.Add(story);
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(HasNoResults));
+    }
 
     // Navigation delivers a saved story before this singleton page loads.
     public void PrepareForDisplay(object? parameter)
@@ -71,8 +105,9 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
                 try
                 {
                     var stories = await repository.GetAllAsync();
-                    Stories.Clear();
-                    foreach (var story in stories) Stories.Add(story);
+                    _allStories.Clear();
+                    _allStories.AddRange(stories);
+                    RefreshVisibleStories();
                 }
                 catch (Exception)
                 {
@@ -112,8 +147,8 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
         try
         {
             await repository.DeleteAsync(story.Id);
-            Stories.Remove(story);
-            OnPropertyChanged(nameof(IsEmpty));
+            _allStories.RemoveAll(item => item.Id == story.Id);
+            RefreshVisibleStories();
             SuccessMessage = $"Deleted “{story.Title}”.";
             // Queue a final read even if an earlier snapshot is still loading.
             await LoadAsync();

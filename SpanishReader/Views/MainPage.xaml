@@ -58,6 +58,7 @@
                                 Margin="0,0,12,0"
                                 PlaceholderText="Search library"
                                 QueryIcon="Find"
+                                Text="{x:Bind ViewModel.SearchText, Mode=OneWay}" TextChanged="OnSearchTextChanged"
                                 Background="{ThemeResource ReaderNotesBrush}" Foreground="{ThemeResource ReaderInkBrush}"
                                 BorderBrush="{ThemeResource ReaderRuleBrush}"
                                 VerticalAlignment="Center"
@@ -67,43 +68,49 @@
 
                         <AppBarButton Icon="Add" Label="Import" AutomationProperties.AutomationId="OpenImport" AutomationProperties.Name="Import to library" Command="{x:Bind ViewModel.ImportStoryCommand}" />
 
-                        <AppBarButton Icon="Sort" Label="Sort by" AutomationProperties.Name="Sort library">
+                        <AppBarButton Icon="Sort" Label="Sort by" AutomationProperties.AutomationId="LibrarySort" AutomationProperties.Name="Sort library">
                             <AppBarButton.Flyout>
                                 <MenuFlyout>
-                                    <MenuFlyoutItem Text="Date added">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Glyph="&#xE74A;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                    <MenuFlyoutItem Text="Date added">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Glyph="&#xE74B;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                    <MenuFlyoutItem Text="CEFR level">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Glyph="&#xE74A;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
-                                    <MenuFlyoutItem Text="CEFR level">
-                                        <MenuFlyoutItem.Icon>
-                                            <FontIcon Glyph="&#xE74B;" />
-                                        </MenuFlyoutItem.Icon>
-                                    </MenuFlyoutItem>
+                                    <RadioMenuFlyoutItem Text="Date added — newest first" GroupName="LibrarySort" Tag="NewestFirst"
+                                        Click="OnSortClicked" IsChecked="{x:Bind local:MainPage.IsSortSelected(ViewModel.SelectedSortOrder, 'NewestFirst'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="SortNewestFirst" />
+                                    <RadioMenuFlyoutItem Text="Date added — oldest first" GroupName="LibrarySort" Tag="OldestFirst"
+                                        Click="OnSortClicked" IsChecked="{x:Bind local:MainPage.IsSortSelected(ViewModel.SelectedSortOrder, 'OldestFirst'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="SortOldestFirst" />
+                                    <RadioMenuFlyoutItem Text="CEFR level — A1 to C2" GroupName="LibrarySort" Tag="CefrAscending"
+                                        Click="OnSortClicked" IsChecked="{x:Bind local:MainPage.IsSortSelected(ViewModel.SelectedSortOrder, 'CefrAscending'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="SortCefrAscending" />
+                                    <RadioMenuFlyoutItem Text="CEFR level — C2 to A1" GroupName="LibrarySort" Tag="CefrDescending"
+                                        Click="OnSortClicked" IsChecked="{x:Bind local:MainPage.IsSortSelected(ViewModel.SelectedSortOrder, 'CefrDescending'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="SortCefrDescending" />
                                 </MenuFlyout>
                             </AppBarButton.Flyout>
                         </AppBarButton>
 
-                        <AppBarButton Icon="Filter" Label="CEFR level" AutomationProperties.Name="Filter library by CEFR level">
+                        <AppBarButton Icon="Filter" Label="CEFR level" AutomationProperties.AutomationId="LibraryLevel" AutomationProperties.Name="Filter library by CEFR level">
                             <AppBarButton.Flyout>
                                 <MenuFlyout>
-                                    <MenuFlyoutItem Text="All levels" />
-                                    <MenuFlyoutItem Text="A1" />
-                                    <MenuFlyoutItem Text="A2" />
-                                    <MenuFlyoutItem Text="B1" />
-                                    <MenuFlyoutItem Text="B2" />
-                                    <MenuFlyoutItem Text="C1" />
-                                    <MenuFlyoutItem Text="C2" />
+                                    <RadioMenuFlyoutItem Text="All levels" GroupName="LibraryLevel" Tag="All"
+                                        Click="OnLevelClicked" IsChecked="{x:Bind local:MainPage.IsLevelSelected(ViewModel.SelectedLevel, 'All'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="FilterAll" />
+                                    <RadioMenuFlyoutItem Text="A1" GroupName="LibraryLevel" Tag="A1"
+                                        Click="OnLevelClicked" IsChecked="{x:Bind local:MainPage.IsLevelSelected(ViewModel.SelectedLevel, 'A1'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="FilterA1" />
+                                    <RadioMenuFlyoutItem Text="A2" GroupName="LibraryLevel" Tag="A2"
+                                        Click="OnLevelClicked" IsChecked="{x:Bind local:MainPage.IsLevelSelected(ViewModel.SelectedLevel, 'A2'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="FilterA2" />
+                                    <RadioMenuFlyoutItem Text="B1" GroupName="LibraryLevel" Tag="B1"
+                                        Click="OnLevelClicked" IsChecked="{x:Bind local:MainPage.IsLevelSelected(ViewModel.SelectedLevel, 'B1'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="FilterB1" />
+                                    <RadioMenuFlyoutItem Text="B2" GroupName="LibraryLevel" Tag="B2"
+                                        Click="OnLevelClicked" IsChecked="{x:Bind local:MainPage.IsLevelSelected(ViewModel.SelectedLevel, 'B2'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="FilterB2" />
+                                    <RadioMenuFlyoutItem Text="C1" GroupName="LibraryLevel" Tag="C1"
+                                        Click="OnLevelClicked" IsChecked="{x:Bind local:MainPage.IsLevelSelected(ViewModel.SelectedLevel, 'C1'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="FilterC1" />
+                                    <RadioMenuFlyoutItem Text="C2" GroupName="LibraryLevel" Tag="C2"
+                                        Click="OnLevelClicked" IsChecked="{x:Bind local:MainPage.IsLevelSelected(ViewModel.SelectedLevel, 'C2'), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="FilterC2" />
                                 </MenuFlyout>
                             </AppBarButton.Flyout>
                         </AppBarButton>
@@ -143,6 +150,11 @@
                                    Foreground="{ThemeResource ReaderMutedBrush}" TextAlignment="Center"
                                    Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsEmpty), Mode=OneWay}"
                                    AutomationProperties.AutomationId="EmptyLibrary" />
+                        <TextBlock Text="No stories match your search or CEFR filter." TextWrapping="Wrap"
+                                   FontFamily="Georgia" FontSize="17" FontStyle="Italic" Margin="0,12"
+                                   Foreground="{ThemeResource ReaderMutedBrush}" TextAlignment="Center"
+                                   Visibility="{x:Bind local:UiHelpers.When(ViewModel.HasNoResults), Mode=OneWay}"
+                                   AutomationProperties.AutomationId="NoLibraryResults" />
                     </StackPanel>
 
                     <Border Grid.Row="3" Margin="0,8,0,0" BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="0,1,0,0">

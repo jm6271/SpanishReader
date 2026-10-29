@@ -34,6 +34,27 @@ namespace SpanishReader.Views
         private void OnStoryClicked(object sender, ItemClickEventArgs e) =>
             ViewModel.OpenStoryCommand.Execute(e.ClickedItem as Story);
 
+        public static bool IsSortSelected(LibrarySortOrder selected, string value) => selected.ToString() == value;
+        public static bool IsLevelSelected(CEFR? selected, string value) => (selected?.ToString() ?? "All") == value;
+
+        private void OnSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+                ViewModel.SearchText = sender.Text;
+        }
+
+        private void OnSortClicked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            if (sender is RadioMenuFlyoutItem { Tag: string value } && Enum.TryParse<LibrarySortOrder>(value, out var sort))
+                ViewModel.SelectedSortOrder = sort;
+        }
+
+        private void OnLevelClicked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        {
+            if (sender is RadioMenuFlyoutItem { Tag: string value })
+                ViewModel.SelectedLevel = value == "All" ? null : Enum.Parse<CEFR>(value);
+        }
+
         public static string StoryActionsName(string title) => $"Actions for {title}";
 
         private void OnEditStoryClicked(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
