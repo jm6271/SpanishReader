@@ -33,7 +33,8 @@
                   Background="{ThemeResource ReaderCanvasBrush}"
                   Foreground="{ThemeResource ReaderInkBrush}">
             <TitleBar.IconSource>
-                <ImageIconSource ImageSource="Assets/AppIcon.ico" />
+                <!-- Use a PNG so the image decoder cannot select a small ICO frame and upscale it. -->
+                <ImageIconSource ImageSource="ms-appx:///Assets/AppIcon.png" />
             </TitleBar.IconSource>
         </TitleBar>
 
