@@ -13,12 +13,25 @@
     </Window.SystemBackdrop>
 
     <Grid>
+        <Grid.Resources>
+            <ResourceDictionary>
+                <ResourceDictionary.MergedDictionaries>
+                    <ResourceDictionary Source="ms-appx:///Themes/ReaderTheme.xaml" />
+                </ResourceDictionary.MergedDictionaries>
+            </ResourceDictionary>
+        </Grid.Resources>
+        <!-- Resolve the canvas brush after loading the shared theme resources. -->
+        <Grid.Background>
+            <ThemeResource ResourceKey="ReaderCanvasBrush" />
+        </Grid.Background>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TitleBar x:Name="AppTitleBar" Title="SpanishReader">
+        <TitleBar x:Name="AppTitleBar" Title="SpanishReader"
+                  Background="{ThemeResource ReaderCanvasBrush}"
+                  Foreground="{ThemeResource ReaderInkBrush}">
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="Assets/AppIcon.ico" />
             </TitleBar.IconSource>

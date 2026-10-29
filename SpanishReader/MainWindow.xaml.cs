@@ -46,6 +46,11 @@ namespace SpanishReader
             AppWindow.TitleBar.PreferredTheme = AppTitleBar.ActualTheme == ElementTheme.Dark
                 ? TitleBarTheme.Dark
                 : TitleBarTheme.Light;
+
+            // Let the themed XAML canvas show through the native caption buttons,
+            // including when the window loses focus. Keep system hover/pressed colors.
+            AppWindow.TitleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+            AppWindow.TitleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
         }
     }
 }
