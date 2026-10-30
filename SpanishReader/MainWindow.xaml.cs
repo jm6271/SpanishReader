@@ -29,7 +29,8 @@ namespace SpanishReader
             AppTitleBar.ActualThemeChanged += (_, _) => UpdateTitleBarTheme();
             UpdateTitleBarTheme();
 
-            AppWindow.SetIcon("Assets/AppIcon.ico");
+            // An unpackaged app can be started with any working directory.
+            AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
 
             var navigationService = ((App)Application.Current).Services.GetRequiredService<NavigationService>();
             navigationService.SetFrame(RootFrame);
