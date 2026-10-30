@@ -1,5 +1,7 @@
 # SpanishReader
 
+[![Build and test](https://github.com/jm6271/SpanishReader/actions/workflows/ci.yml/badge.svg)](https://github.com/jm6271/SpanishReader/actions/workflows/ci.yml)
+
 SpanishReader is a Windows app for reading Spanish stories with sentence-by-sentence English translations. Stories and translations are stored locally, and translation uses a bundled offline model.
 
 ## Using the app
