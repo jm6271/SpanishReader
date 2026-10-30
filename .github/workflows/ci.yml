@@ -30,8 +30,10 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Release enables ReadyToRun; restore must use the same configuration and
+      # profile as publish so its runtime optimization packages enter the assets file.
       - name: Restore app
-        run: dotnet restore SpanishReader/SpanishReader.csproj --runtime win-x64 -p:Platform=x64
+        run: dotnet restore SpanishReader/SpanishReader.csproj --runtime win-x64 -p:Configuration=Release -p:Platform=x64 -p:PublishProfile=win-x64
 
       # Serialize XAML compilation to avoid intermittent compiler failures.
       # Publishing also runs ILLink; a normal build cannot validate trimming.
