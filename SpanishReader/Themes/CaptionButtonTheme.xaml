@@ -1,0 +1,29 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Scoped to the appearance button: standard page buttons keep their styling.
+         Caption hover fills are opaque, independent of the reader's paper color. -->
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="CaptionButtonForeground" Color="Black" />
+            <SolidColorBrush x:Key="SubtleButtonBackgroundPointerOver" Color="#E5E5E5" />
+            <SolidColorBrush x:Key="SubtleButtonBackgroundPressed" Color="#CCCCCC" />
+            <StaticResource x:Key="SubtleButtonForegroundPointerOver" ResourceKey="CaptionButtonForeground" />
+            <StaticResource x:Key="SubtleButtonForegroundPressed" ResourceKey="CaptionButtonForeground" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="CaptionButtonForeground" Color="White" />
+            <SolidColorBrush x:Key="SubtleButtonBackgroundPointerOver" Color="#191919" />
+            <SolidColorBrush x:Key="SubtleButtonBackgroundPressed" Color="#333333" />
+            <StaticResource x:Key="SubtleButtonForegroundPointerOver" ResourceKey="CaptionButtonForeground" />
+            <StaticResource x:Key="SubtleButtonForegroundPressed" ResourceKey="CaptionButtonForeground" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <StaticResource x:Key="CaptionButtonForeground" ResourceKey="SystemColorButtonTextColorBrush" />
+            <StaticResource x:Key="SubtleButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="SubtleButtonBackgroundPressed" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="SubtleButtonForegroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <StaticResource x:Key="SubtleButtonForegroundPressed" ResourceKey="SystemColorHighlightTextColorBrush" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

@@ -47,6 +47,8 @@ namespace SpanishReader
             InitializeComponent();
 
             var services = new ServiceCollection();
+            services.AddSingleton(_ => new ThemePreferenceStore(
+                Path.Combine(Path.GetDirectoryName(AppDataPath.GetDatabasePath())!, "theme.txt")));
             services.AddSingleton<IStoryRepository>(_ => new SqliteStoryRepository(
                 AppDataPath.GetDatabasePath(), Path.Combine(AppContext.BaseDirectory, "BundledStories")));
             services.AddSingleton<ITranslationService>(_ => new BergamotTranslationService(

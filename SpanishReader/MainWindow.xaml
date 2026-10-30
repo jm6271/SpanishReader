@@ -12,7 +12,7 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.Resources>
             <ResourceDictionary>
                 <ResourceDictionary.MergedDictionaries>
@@ -29,14 +29,46 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TitleBar x:Name="AppTitleBar" Title="SpanishReader"
-                  Background="{ThemeResource ReaderCanvasBrush}"
-                  Foreground="{ThemeResource ReaderInkBrush}">
-            <TitleBar.IconSource>
-                <!-- Use a PNG so the image decoder cannot select a small ICO frame and upscale it. -->
-                <ImageIconSource ImageSource="ms-appx:///Assets/AppIcon.png" />
-            </TitleBar.IconSource>
-        </TitleBar>
+        <Grid x:Name="TitleBarLayout" Height="32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <!-- Only this region drags the window. The adjacent theme button
+                 remains a regular, keyboard-accessible XAML button. -->
+            <Grid x:Name="AppTitleBar" Background="{ThemeResource ReaderCanvasBrush}">
+                <StackPanel Orientation="Horizontal" Spacing="16" Margin="14,0,0,0"
+                            VerticalAlignment="Center">
+                    <Image Source="ms-appx:///Assets/AppIcon.png" Width="16" Height="16" />
+                    <TextBlock Text="SpanishReader" FontSize="12"
+                               Foreground="{ThemeResource ReaderInkBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+            <Button x:Name="ThemeToggleButton" Grid.Column="1"
+                        AutomationProperties.AutomationId="ThemeToggleButton"
+                        AutomationProperties.Name="Switch to light mode"
+                        ToolTipService.ToolTip="Switch to light mode"
+                        Style="{StaticResource SubtleButtonStyle}"
+                        Width="46" VerticalAlignment="Stretch"
+                        Padding="0" BorderThickness="0" CornerRadius="0"
+                        Loaded="ThemeToggleButton_Loaded"
+                        Click="ThemeToggleButton_Click">
+                <Button.Resources>
+                    <ResourceDictionary>
+                        <ResourceDictionary.MergedDictionaries>
+                            <ResourceDictionary Source="ms-appx:///Themes/CaptionButtonTheme.xaml" />
+                        </ResourceDictionary.MergedDictionaries>
+                    </ResourceDictionary>
+                </Button.Resources>
+                <Button.Foreground>
+                    <ThemeResource ResourceKey="CaptionButtonForeground" />
+                </Button.Foreground>
+                <FontIcon x:Name="ThemeToggleIcon" Glyph="&#xE706;" FontSize="16" />
+            </Button>
+            <!-- Reserve exactly the native caption-button area, in XAML units. -->
+            <Border x:Name="CaptionButtonInset" Grid.Column="2" Width="138" />
+        </Grid>
 
         <!--
             The Frame hosts pages for your application content. Add your UI to
