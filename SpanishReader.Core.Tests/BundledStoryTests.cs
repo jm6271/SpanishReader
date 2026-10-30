@@ -167,6 +167,39 @@ public sealed class BundledStoryTests : IDisposable
         Assert.Empty(await new SqliteStoryRepository(Database).GetAllAsync());
     }
 
+    [Fact]
+    public void JsonContractKeepsStrictValidationWithoutReflection()
+    {
+        // The test host disables JSON reflection, just as trimmed publishing does.
+        Assert.False(System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault);
+        var json = BundledStoryContent.Serialize(Content("schema"));
+        Assert.Contains("\"level\": \"A1\"", json);
+        Assert.Contains("Hola.", json);
+        Assert.Equal("schema", BundledStoryContent.Deserialize(json).Id);
+        Assert.Throws<System.Text.Json.JsonException>(() =>
+            BundledStoryContent.Deserialize(json.Replace("\"level\": \"A1\"", "\"level\": 0")));
+        Assert.Throws<System.Text.Json.JsonException>(() =>
+            BundledStoryContent.Deserialize(json.Replace("\"id\": \"schema\",", "")));
+        Assert.Throws<System.Text.Json.JsonException>(() =>
+            BundledStoryContent.Deserialize(json.Replace("\"id\":", "\"unexpected\": true, \"id\":")));
+    }
+
+    [Fact]
+    public void DoubleQuotedMarkdownMetadataUsesGeneratedStringMetadata()
+    {
+        var story = BundledStoryContent.ParseMarkdown("""
+            ---
+            id: quoted
+            title: "Un gato: \"Luna\""
+            level: A1
+            author: "Mar\u00eda"
+            ---
+            Hola.
+            """);
+        Assert.Equal("Un gato: \"Luna\"", story.Title);
+        Assert.Equal("María", story.Author);
+    }
+
     private static BundledStory Content(string id) => new()
     {
         Id = id, Title = id, EnglishTitle = "English title", Level = CEFR.A1,

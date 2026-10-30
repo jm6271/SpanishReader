@@ -18,15 +18,17 @@ public static class BundledStoryContent
         Converters = { new JsonStringEnumConverter<CEFR>(allowIntegerValues: false) }
     };
 
+    private static readonly BundledStoryJsonContext JsonContext = new(JsonOptions);
+
     public static string Serialize(BundledStory story)
     {
         Validate(story);
-        return JsonSerializer.Serialize(story, JsonOptions) + "\n";
+        return JsonSerializer.Serialize(story, JsonContext.BundledStory) + "\n";
     }
 
     public static BundledStory Deserialize(string json)
     {
-        var story = JsonSerializer.Deserialize<BundledStory>(json, JsonOptions)
+        var story = JsonSerializer.Deserialize(json, JsonContext.BundledStory)
             ?? throw new InvalidDataException("The bundled story is empty.");
         Validate(story);
         return story;
@@ -62,7 +64,7 @@ public static class BundledStoryContent
                 throw new InvalidDataException($"Unknown metadata key: {key}");
             var value = line[(colon + 1)..].Trim();
             if (value.StartsWith('"'))
-                value = JsonSerializer.Deserialize<string>(value) ?? string.Empty;
+                value = JsonSerializer.Deserialize(value, JsonContext.String) ?? string.Empty;
             else if (value.StartsWith('\''))
             {
                 if (value.Length < 2 || !value.EndsWith('\'')) throw new InvalidDataException("Unclosed metadata quote.");
