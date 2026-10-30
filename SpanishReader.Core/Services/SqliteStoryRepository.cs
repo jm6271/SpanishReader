@@ -9,16 +9,20 @@ public sealed class SqliteStoryRepository : IStoryRepository
 {
     private readonly string _databasePath;
     private readonly string _connectionString;
+    private readonly string? _bundledStoriesDirectory;
     private readonly object _gate = new();
     private bool _initialized;
 
-    public SqliteStoryRepository(string databasePath)
+    public SqliteStoryRepository(string databasePath, string? bundledStoriesDirectory = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         if (!Path.IsPathFullyQualified(databasePath))
             throw new ArgumentException("An absolute database path is required.", nameof(databasePath));
 
         _databasePath = databasePath;
+        if (bundledStoriesDirectory is not null && !Path.IsPathFullyQualified(bundledStoriesDirectory))
+            throw new ArgumentException("An absolute bundled stories directory is required.", nameof(bundledStoriesDirectory));
+        _bundledStoriesDirectory = bundledStoriesDirectory;
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = databasePath, Pooling = false, DefaultTimeout = 5, ForeignKeys = true
@@ -51,21 +55,7 @@ public sealed class SqliteStoryRepository : IStoryRepository
         return ExecuteAsync(connection =>
         {
             using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = """
-                INSERT INTO Stories (Title, EnglishTitle, Level, Author, DateAdded)
-                VALUES ($title, $englishTitle, $level, $author, $date)
-                RETURNING Id;
-                """;
-            command.Parameters.AddWithValue("$title", saved.Title);
-            command.Parameters.AddWithValue("$englishTitle", saved.EnglishTitle);
-            command.Parameters.AddWithValue("$level", saved.Level.ToString());
-            command.Parameters.AddWithValue("$author", saved.Author);
-            command.Parameters.AddWithValue("$date", saved.DateAdded.ToString("O", CultureInfo.InvariantCulture));
-            saved.Id = (long)command.ExecuteScalar()!;
-
-            InsertSentences(connection, transaction, saved);
+            InsertStory(connection, transaction, saved);
             // A failed sentence insert rolls back the parent and all earlier sentences.
             transaction.Commit();
             return saved;
@@ -153,6 +143,23 @@ public sealed class SqliteStoryRepository : IStoryRepository
                 throw new InvalidOperationException("The story no longer exists.");
             return true;
         });
+    }
+
+    private static void InsertStory(SqliteConnection connection, SqliteTransaction transaction, Story story)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO Stories (Title, EnglishTitle, Level, Author, DateAdded)
+            VALUES ($title, $englishTitle, $level, $author, $date) RETURNING Id;
+            """;
+        command.Parameters.AddWithValue("$title", story.Title.Trim());
+        command.Parameters.AddWithValue("$englishTitle", story.EnglishTitle.Trim());
+        command.Parameters.AddWithValue("$level", story.Level.ToString());
+        command.Parameters.AddWithValue("$author", story.Author.Trim());
+        command.Parameters.AddWithValue("$date", story.DateAdded.ToString("O", CultureInfo.InvariantCulture));
+        story.Id = (long)command.ExecuteScalar()!;
+        InsertSentences(connection, transaction, story);
     }
 
     private static void InsertSentences(SqliteConnection connection, SqliteTransaction transaction, Story story)
@@ -256,6 +263,7 @@ public sealed class SqliteStoryRepository : IStoryRepository
             if (!_initialized)
             {
                 Initialize(connection);
+                ImportBundledStories(connection);
                 _initialized = true;
             }
             return operation(connection);
@@ -269,7 +277,7 @@ public sealed class SqliteStoryRepository : IStoryRepository
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version;";
         var version = (long)command.ExecuteScalar()!;
-        if (version > 3)
+        if (version > 4)
             throw new InvalidDataException("This database requires a newer version of SpanishReader.");
 
         if (version == 1)
@@ -334,6 +342,44 @@ public sealed class SqliteStoryRepository : IStoryRepository
                 PRAGMA user_version = 3;
                 """;
             command.ExecuteNonQuery();
+        }
+        if (version < 4)
+        {
+            // This ledger deliberately has no foreign key to Stories: deleting a
+            // story must not remove the record that it was already offered.
+            command.CommandText = """
+                CREATE TABLE ImportedBundledStories (BundleId TEXT PRIMARY KEY NOT NULL);
+                PRAGMA user_version = 4;
+                """;
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    private void ImportBundledStories(SqliteConnection connection)
+    {
+        if (_bundledStoriesDirectory is null) return;
+        // A configured but missing directory is a deployment error. Do not mark
+        // initialization complete; a later load can retry after the files are fixed.
+        var bundles = Directory.GetFiles(_bundledStoriesDirectory, "*.json")
+            .Order(StringComparer.Ordinal).Select(path => BundledStoryContent.Deserialize(File.ReadAllText(path))).ToList();
+        if (bundles.Select(b => b.Id).Distinct(StringComparer.Ordinal).Count() != bundles.Count)
+            throw new InvalidDataException("Bundled stories contain duplicate IDs.");
+        foreach (var bundle in bundles) BundledStoryContent.Validate(bundle, requireTranslations: true);
+
+        // All content and ledger entries commit together. The write transaction
+        // also serializes two app instances initializing the same database.
+        using var transaction = connection.BeginTransaction();
+        foreach (var bundle in bundles)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "INSERT OR IGNORE INTO ImportedBundledStories (BundleId) VALUES ($id);";
+            command.Parameters.AddWithValue("$id", bundle.Id);
+            if (command.ExecuteNonQuery() == 0) continue;
+            var story = bundle.ToStory();
+            story.DateAdded = DateTime.UtcNow;
+            InsertStory(connection, transaction, story);
         }
         transaction.Commit();
     }

@@ -24,6 +24,12 @@
 
   <!-- Exercise the actual bundled model and native library, without network access. -->
   <ItemGroup>
+    <Content Include="..\BundledStories\*.json;..\BundledStories\*.md">
+      <Link>BundledStories\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="..\SpanishReader\TranslationModels\esen\*.bin;..\SpanishReader\TranslationModels\esen\*.spm;..\SpanishReader\TranslationModels\esen\config.yml">
       <Link>TranslationModels\esen\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

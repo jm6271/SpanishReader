@@ -54,6 +54,9 @@ jobs:
       - name: Restore tests
         run: dotnet restore SpanishReader.Core.Tests/SpanishReader.Core.Tests.csproj -p:Platform=x64
 
+      - name: Build content tool
+        run: dotnet build SpanishReader.ContentTool/SpanishReader.ContentTool.csproj --configuration Release -p:Platform=x64
+
       - name: Run tests
         run: dotnet test SpanishReader.Core.Tests/SpanishReader.Core.Tests.csproj --configuration Release --no-restore -p:Platform=x64 --logger "trx;LogFileName=core-tests.trx" --results-directory TestResults
 

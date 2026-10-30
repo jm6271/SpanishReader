@@ -21,7 +21,7 @@ public sealed class StoryRepositoryTests : IDisposable
         using var connection = Open();
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version;";
-        Assert.Equal(3L, command.ExecuteScalar());
+        Assert.Equal(4L, command.ExecuteScalar());
     }
 
     [Theory]
@@ -122,14 +122,14 @@ public sealed class StoryRepositoryTests : IDisposable
         using (var connection = Open())
         using (var command = connection.CreateCommand())
         {
-            command.CommandText = "PRAGMA user_version = 4;";
+            command.CommandText = "PRAGMA user_version = 5;";
             command.ExecuteNonQuery();
         }
         await Assert.ThrowsAsync<InvalidDataException>(() => new SqliteStoryRepository(DatabasePath).GetAllAsync());
         using var check = Open();
         using var query = check.CreateCommand();
         query.CommandText = "PRAGMA user_version;";
-        Assert.Equal(4L, query.ExecuteScalar());
+        Assert.Equal(5L, query.ExecuteScalar());
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class StoryRepositoryTests : IDisposable
         query.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Stories') WHERE name = 'StoryText';";
         Assert.Equal(0L, query.ExecuteScalar());
         query.CommandText = "PRAGMA user_version;";
-        Assert.Equal(3L, query.ExecuteScalar());
+        Assert.Equal(4L, query.ExecuteScalar());
     }
 
     [Fact]

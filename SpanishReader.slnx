@@ -6,6 +6,7 @@
   </Configurations>
   <Project Path="SpanishReader.Core.Tests/SpanishReader.Core.Tests.csproj" />
   <Project Path="SpanishReader.Core/SpanishReader.Core.csproj" />
+  <Project Path="SpanishReader.ContentTool/SpanishReader.ContentTool.csproj" />
   <Project Path="SpanishReader/SpanishReader.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />

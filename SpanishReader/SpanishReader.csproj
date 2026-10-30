@@ -47,6 +47,14 @@
 
   <!-- Keep the model and its relative-path configuration together in build and publish folders. -->
   <ItemGroup>
+    <Content Include="..\BundledStories\*.json">
+      <Link>BundledStories\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="TranslationModels\esen\*.bin;TranslationModels\esen\*.spm;TranslationModels\esen\*.yml;TranslationModels\esen\*.md;TranslationModels\esen\LICENSE">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

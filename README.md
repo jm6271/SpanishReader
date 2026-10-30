@@ -14,6 +14,10 @@ SpanishReader is a Windows app for reading Spanish stories with sentence-by-sent
 
 ![Reader View](docs/screenshots/reader.jpg)
 
+## Bundled stories
+
+See [Bundled stories](docs/bundled-stories.md) for authoring, translation, and first-run import details.
+
 ## Building from source
 
 On Windows, install the .NET 10 SDK and the Windows development tools needed for WinUI 3. Open `SpanishReader.slnx` in Visual Studio, or build from a terminal:
