@@ -1,0 +1,78 @@
+name: Release installer
+
+on:
+  release:
+    # Covers stable releases and prereleases, including those published from drafts.
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.release.id }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  installer:
+    name: Publish x64 installer
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Get installer version from release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)*$') {
+            throw "Use a release tag such as v1.2.3 or v1.2.3-beta.1."
+          }
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+
+      # The profile and project bundle both .NET and the Windows App SDK runtime.
+      # Serialize XAML compilation, matching the build workflow.
+      - name: Publish app
+        run: >-
+          dotnet publish SpanishReader/SpanishReader.csproj
+          --configuration Release --runtime win-x64 --self-contained true
+          -p:Platform=x64 -p:PublishProfile=win-x64
+          -m:1 -p:UseSharedCompilation=false
+          --output "${{ github.workspace }}/artifacts/publish"
+
+      - name: Compile Inno Setup installer
+        run: |
+          # Inno Setup is preinstalled on the Windows 2025 hosted runner.
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path -LiteralPath $compiler)) {
+            throw "Inno Setup compiler not found: $compiler"
+          }
+          & $compiler "/DMyAppVersion=$env:APP_VERSION" "/DPublishDir=$env:GITHUB_WORKSPACE/artifacts/publish" "/O$env:GITHUB_WORKSPACE/artifacts/installer" "/Fspanishreader-setup-$env:APP_VERSION-x64" setup/setup.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload installer to this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          $installer = "artifacts/installer/spanishreader-setup-$env:APP_VERSION-x64.exe"
+          if (!(Test-Path -LiteralPath $installer)) {
+            throw "Installer not found: $installer"
+          }
+          # Allow a rerun to replace an installer uploaded by an earlier attempt.
+          gh release upload $env:RELEASE_TAG $installer --clobber

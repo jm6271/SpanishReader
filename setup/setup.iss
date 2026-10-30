@@ -3,7 +3,13 @@
 ; Non-commercial use only
 
 #define MyAppName "SpanishReader"
-#define MyAppVersion "0.1.0"
+; CI supplies the release version and publish folder; keep defaults for local builds.
+#ifndef MyAppVersion
+  #define MyAppVersion "0.1.0"
+#endif
+#ifndef PublishDir
+  #define PublishDir "..\SpanishReader\bin\Release\net10.0-windows10.0.26100.0\win-x64\publish"
+#endif
 #define MyAppPublisher "Jordan Miller"
 #define MyAppURL "https://github.com/jm6271/SpanishReader"
 #define MyAppExeName "SpanishReader.exe"
@@ -30,11 +36,11 @@ ArchitecturesAllowed=x64compatible
 ; the 64-bit view of the registry.
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
-LicenseFile=C:\Users\Jordan Miller\source\repos\SpanishReader\LICENSE.txt
+LicenseFile=..\LICENSE.txt
 ; Remove the following line to run in administrative install mode (install for all users).
 PrivilegesRequired=lowest
 OutputDir=.
-OutputBaseFilename=spanishreader-setup-0.1.0
+OutputBaseFilename=spanishreader-setup-{#MyAppVersion}
 SolidCompression=yes
 WizardStyle=modern dynamic
 
@@ -45,8 +51,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\SpanishReader\bin\Release\net10.0-windows10.0.26100.0\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\SpanishReader\bin\Release\net10.0-windows10.0.26100.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
