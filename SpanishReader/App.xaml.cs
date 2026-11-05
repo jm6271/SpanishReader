@@ -60,6 +60,9 @@ namespace SpanishReader
             services.AddSingleton<ImportPageViewModel>();
             services.AddSingleton<EditStoryPage>();
             services.AddSingleton<EditStoryPageViewModel>();
+            services.AddSingleton<IReadAloudService, WindowsReadAloudService>();
+            services.AddSingleton(_ => new ReadAloudPreferenceStore(Path.Combine(Path.GetDirectoryName(AppDataPath.GetDatabasePath())!, "speech.json")));
+            services.AddSingleton<ReadAloudViewModel>();
             services.AddSingleton<ReadingPage>();
             services.AddSingleton<ReadingPageViewModel>();
 

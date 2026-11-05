@@ -4,6 +4,8 @@
     <ResourceDictionary.ThemeDictionaries>
         <!-- Warm paper and ink follow Windows light/dark preferences. -->
         <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="ReaderSpokenWordBrush" Color="#835B35" />
+            <SolidColorBrush x:Key="ReaderSpokenWordInkBrush" Color="#FFFCF4" />
             <SolidColorBrush x:Key="ReaderCanvasBrush" Color="#EAE5DA" />
             <SolidColorBrush x:Key="ReaderPaperBrush" Color="#FFFCF4" />
             <SolidColorBrush x:Key="ReaderNotesBrush" Color="#F7F1E5" />
@@ -20,6 +22,8 @@
             <StaticResource x:Key="HyperlinkForegroundPressed" ResourceKey="ReaderInkBrush" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="ReaderSpokenWordBrush" Color="#D1AC79" />
+            <SolidColorBrush x:Key="ReaderSpokenWordInkBrush" Color="#201E1B" />
             <SolidColorBrush x:Key="ReaderCanvasBrush" Color="#201E1B" />
             <SolidColorBrush x:Key="ReaderPaperBrush" Color="#2A2722" />
             <SolidColorBrush x:Key="ReaderNotesBrush" Color="#25231F" />
@@ -35,6 +39,8 @@
             <StaticResource x:Key="HyperlinkForegroundPressed" ResourceKey="ReaderInkBrush" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="HighContrast">
+            <StaticResource x:Key="ReaderSpokenWordBrush" ResourceKey="SystemColorHighlightBrush" />
+            <StaticResource x:Key="ReaderSpokenWordInkBrush" ResourceKey="SystemColorHighlightTextBrush" />
             <StaticResource x:Key="ReaderCanvasBrush" ResourceKey="SystemColorWindowBrush" />
             <StaticResource x:Key="ReaderPaperBrush" ResourceKey="SystemColorWindowBrush" />
             <StaticResource x:Key="ReaderNotesBrush" ResourceKey="SystemColorWindowBrush" />

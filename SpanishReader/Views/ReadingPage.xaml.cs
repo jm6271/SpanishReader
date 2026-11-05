@@ -15,16 +15,21 @@ public sealed partial class ReadingPage : Page, INavigationAware
     private readonly Dictionary<DependencyObject, Hyperlink> _sentenceLinks = [];
     private readonly Dictionary<Hyperlink, TextRange> _sentenceRanges = [];
     private readonly Dictionary<Hyperlink, StorySentence> _sentenceModels = [];
+    private SpokenWord? spokenWord;
     private Hyperlink? _hoveredHyperlink;
     private Hyperlink? _keyboardHyperlink;
     private Hyperlink? _selectedHyperlink;
     private SentencePointerGesture? _pointerGesture;
     public ReadingPageViewModel ViewModel { get; }
 
-    public ReadingPage(ReadingPageViewModel viewModel)
+    public ReadAloudViewModel Player { get; }
+
+    public ReadingPage(ReadingPageViewModel viewModel, ReadAloudViewModel player)
     {
         ViewModel = viewModel;
+        Player = player;
         InitializeComponent();
+        Player.WordChanged += OnSpokenWord;
         // Hyperlinks are inline text, so pointer events belong to their text host.
         // Listen even when the native text selection/link handling marks them handled.
         StoryContent.AddHandler(PointerMovedEvent, new PointerEventHandler(OnStoryPointerMoved), true);
@@ -47,6 +52,7 @@ public sealed partial class ReadingPage : Page, INavigationAware
             _hoveredHyperlink = _keyboardHyperlink = null;
             _pointerGesture = null;
             UpdateSentenceHighlight();
+            Player.Stop();
             ViewModel.Deactivate();
         };
     }
@@ -55,6 +61,7 @@ public sealed partial class ReadingPage : Page, INavigationAware
     {
         if (parameter is not Story story)
             throw new ArgumentException("A story is required to open the reader.", nameof(parameter));
+        Player.Stop();
         ViewModel.PrepareForDisplay(story);
         _hoveredHyperlink = _keyboardHyperlink = null;
         _selectedHyperlink = null;
@@ -126,6 +133,38 @@ public sealed partial class ReadingPage : Page, INavigationAware
         TranslationScroll.ChangeView(null, 0, null, true);
         Loaded -= ResetScrollOnLoaded;
         Loaded += ResetScrollOnLoaded;
+    }
+
+    private async void OnPlay(object sender, RoutedEventArgs e) =>
+        await Player.PlayAsync(ViewModel.Sentences, _selectedHyperlink is { } link ? _sentenceModels.GetValueOrDefault(link) : null);
+
+    private void OnStop(object sender, RoutedEventArgs e) => Player.Stop();
+
+    private void OnSpokenWord(SpokenWord? word)
+    {
+        spokenWord = word;
+        // Reinsert the highlighter to invalidate native rendering reliably;
+        // updating Ranges alone can leave the previous glyph surface unchanged.
+        StoryContent.TextHighlighters.Remove(WordHighlight);
+        WordHighlight.Ranges.Clear();
+        UpdateSentenceHighlight();
+        if (word is null) return;
+        WordHighlight.Ranges.Add(new TextRange { StartIndex = word.Start, Length = word.Length });
+        StoryContent.TextHighlighters.Insert(0, WordHighlight);
+        // Plain-text indices exclude inline boundaries. Map back through the Run
+        // that contains this word rather than using document-wide pointer offsets.
+        foreach (var pair in _sentenceRanges)
+        {
+            if (word.Start < pair.Value.StartIndex || word.Start >= pair.Value.StartIndex + pair.Value.Length) continue;
+            var run = (Run)pair.Key.Inlines[0];
+            var pointer = run.ContentStart.GetPositionAtOffset(word.Start - pair.Value.StartIndex, LogicalDirection.Forward);
+            if (pointer is null) break;
+            var rect = pointer.GetCharacterRect(LogicalDirection.Forward);
+            var top = StoryScroll.VerticalOffset;
+            if (rect.Top < top || rect.Bottom > top + StoryScroll.ViewportHeight)
+                StoryScroll.ChangeView(null, Math.Max(0, rect.Top - StoryScroll.ViewportHeight / 3), null, true);
+            break;
+        }
     }
 
     private void BindDocumentInk(TextElement element) =>
@@ -230,15 +269,29 @@ public sealed partial class ReadingPage : Page, INavigationAware
         SentenceHighlight.Ranges.Clear();
         if (_selectedHyperlink is { } selected && _sentenceRanges.TryGetValue(selected, out var selectedRange))
         {
-            SentenceHighlight.Ranges.Add(selectedRange);
+            AddSentenceRange(selectedRange);
         }
         // Hovering another sentence previews it without clearing the selection.
         if ((_hoveredHyperlink ?? _keyboardHyperlink) is { } hyperlink &&
             !ReferenceEquals(hyperlink, _selectedHyperlink) &&
             _sentenceRanges.TryGetValue(hyperlink, out var range))
         {
-            SentenceHighlight.Ranges.Add(range);
+            AddSentenceRange(range);
         }
+    }
+
+    private void AddSentenceRange(TextRange range)
+    {
+        var end = range.StartIndex + range.Length;
+        if (spokenWord is not { } word || word.Start >= end || word.Start + word.Length <= range.StartIndex)
+        {
+            SentenceHighlight.Ranges.Add(range);
+            return;
+        }
+        if (word.Start > range.StartIndex)
+            SentenceHighlight.Ranges.Add(new TextRange { StartIndex = range.StartIndex, Length = word.Start - range.StartIndex });
+        if (word.Start + word.Length < end)
+            SentenceHighlight.Ranges.Add(new TextRange { StartIndex = word.Start + word.Length, Length = end - word.Start - word.Length });
     }
 
     private void ResetScrollOnLoaded(object sender, RoutedEventArgs e)

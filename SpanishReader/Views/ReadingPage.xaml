@@ -53,6 +53,10 @@
 
             <!-- Navigation belongs in the quiet outer margin, away from the title. -->
             <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
                 <Button Command="{x:Bind ViewModel.BackCommand}" Style="{StaticResource SubtleButtonStyle}"
                         Foreground="{ThemeResource ReaderMutedBrush}" Padding="12,8" Margin="-12,0,0,0"
                         HorizontalAlignment="Left" MinHeight="36"
@@ -63,8 +67,41 @@
                         <TextBlock Text="Library" FontSize="13" />
                     </StackPanel>
                 </Button>
-                <TextBlock Text="ESPAÑOL  /  ENGLISH" Style="{StaticResource ReaderLabelStyle}"
-                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Click="OnPlay" IsEnabled="{x:Bind Player.HasVoice, Mode=OneWay}"
+                            Style="{StaticResource SubtleButtonStyle}" Width="36" Height="36" Padding="4"
+                            Foreground="{ThemeResource ReaderMutedBrush}"
+                            AutomationProperties.AutomationId="ReaderPlay"
+                            AutomationProperties.Name="{x:Bind Player.PlayLabel, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind Player.PlayLabel, Mode=OneWay}">
+                        <SymbolIcon Symbol="{x:Bind local:UiHelpers.PlaybackSymbol(Player.PlayLabel), Mode=OneWay}" />
+                    </Button>
+                    <Button Click="OnStop" IsEnabled="{x:Bind Player.IsActive, Mode=OneWay}"
+                            Style="{StaticResource SubtleButtonStyle}" Width="36" Height="36" Padding="4"
+                            Foreground="{ThemeResource ReaderMutedBrush}"
+                            AutomationProperties.AutomationId="ReaderStop" AutomationProperties.Name="Stop"
+                            ToolTipService.ToolTip="Stop">
+                        <SymbolIcon Symbol="Stop" />
+                    </Button>
+                    <Button IsEnabled="{x:Bind Player.CanConfigure, Mode=OneWay}"
+                            Style="{StaticResource SubtleButtonStyle}" Width="36" Height="36" Padding="4"
+                            Foreground="{ThemeResource ReaderMutedBrush}"
+                            AutomationProperties.AutomationId="ReaderSpeechSettings" AutomationProperties.Name="Voice and speed"
+                            ToolTipService.ToolTip="Voice and speed">
+                        <SymbolIcon Symbol="Setting" />
+                        <Button.Flyout>
+                            <Flyout>
+                                <!-- Keep the flyout's desired width independent of the
+                                     ComboBox selection presenter while its list is open. -->
+                                <StackPanel Width="260" Spacing="8">
+                                    <ComboBox Header="Voice" MaxWidth="260" ItemsSource="{x:Bind Player.Voices, Mode=OneWay}" SelectedItem="{x:Bind Player.Voice, Mode=TwoWay}" IsEnabled="{x:Bind Player.CanConfigure, Mode=OneWay}" HorizontalAlignment="Stretch" AutomationProperties.Name="Spanish voice" />
+                                    <ComboBox Header="Reading speed (×)" ItemsSource="{x:Bind Player.Speeds, Mode=OneWay}" SelectedItem="{x:Bind Player.Speed, Mode=TwoWay}" IsEnabled="{x:Bind Player.CanConfigure, Mode=OneWay}" HorizontalAlignment="Stretch" AutomationProperties.Name="Reading speed" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+
             </Grid>
 
             <Border Grid.Row="1" Background="{ThemeResource ReaderPaperBrush}" CornerRadius="4"
@@ -83,6 +120,7 @@
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
                             <StackPanel x:Name="StoryHeading" Spacing="12" Margin="0,0,0,32" MaxWidth="680">
@@ -99,7 +137,12 @@
                                         Background="{ThemeResource ReaderAccentBrush}" />
                             </StackPanel>
 
-                            <ScrollViewer x:Name="StoryScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                            <StackPanel Grid.Row="1" Spacing="8" Margin="0,0,0,12"
+                                        Visibility="{x:Bind local:UiHelpers.WhenPlayerFeedback(Player.HasVoice, Player.Error), Mode=OneWay}">
+                                <TextBlock Text="Install a Spanish text-to-speech voice in Windows Settings → Time &amp; language → Speech → Manage voices." TextWrapping="Wrap" Visibility="{x:Bind local:UiHelpers.WhenNot(Player.HasVoice), Mode=OneWay}" />
+                                <InfoBar IsOpen="{x:Bind local:UiHelpers.HasText(Player.Error), Mode=OneWay}" Message="{x:Bind Player.Error, Mode=OneWay}" Severity="Error" IsClosable="False" />
+                            </StackPanel>
+                            <ScrollViewer x:Name="StoryScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch"
                                           AutomationProperties.Name="Story text">
                                 <RichTextBlock x:Name="StoryContent" FontFamily="Georgia" FontSize="21" LineHeight="36"
@@ -110,6 +153,7 @@
                                         <TextHighlighter x:Name="SentenceHighlight"
                                                          Background="{ThemeResource ReaderHoverBrush}"
                                                          Foreground="{ThemeResource ReaderHoverInkBrush}" />
+                                        <TextHighlighter x:Name="WordHighlight" Background="{ThemeResource ReaderSpokenWordBrush}" Foreground="{ThemeResource ReaderSpokenWordInkBrush}" />
                                     </RichTextBlock.TextHighlighters>
                                 </RichTextBlock>
                             </ScrollViewer>
