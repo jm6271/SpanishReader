@@ -49,6 +49,8 @@ namespace SpanishReader
             var services = new ServiceCollection();
             services.AddSingleton(_ => new ThemePreferenceStore(
                 Path.Combine(Path.GetDirectoryName(AppDataPath.GetDatabasePath())!, "theme.txt")));
+            services.AddSingleton(_ => new WindowPlacementStore(
+                Path.Combine(Path.GetDirectoryName(AppDataPath.GetDatabasePath())!, "window-placement.json")));
             services.AddSingleton<IStoryRepository>(_ => new SqliteStoryRepository(
                 AppDataPath.GetDatabasePath(), Path.Combine(AppContext.BaseDirectory, "BundledStories")));
             services.AddSingleton<ITranslationService>(_ => new BergamotTranslationService(
@@ -84,6 +86,7 @@ namespace SpanishReader
         {
             DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             Window = Services.GetRequiredService<MainWindow>();
+            WindowPlacementService.Restore(Window, Services.GetRequiredService<WindowPlacementStore>());
             Window.Closed += OnWindowClosed;
             Window.Activate();
         }
@@ -91,6 +94,9 @@ namespace SpanishReader
         private void OnWindowClosed(object sender, WindowEventArgs args)
         {
             Window.Closed -= OnWindowClosed;
+            // Capture before disposing services. This also handles Window.Close(),
+            // which does not raise AppWindow.Closing like the system close button.
+            WindowPlacementService.Save(Window, Services.GetRequiredService<WindowPlacementStore>());
             (Services as IDisposable)?.Dispose();
         }
     }
