@@ -60,6 +60,7 @@ namespace SpanishReader
             var navigationService = ((App)Application.Current).Services.GetRequiredService<NavigationService>();
             navigationService.SetFrame(RootFrame);
             navigationService.Register<MainPageViewModel, MainPage>();
+            navigationService.Register<SettingsPageViewModel, SettingsPage>();
             navigationService.Register<ImportPageViewModel, ImportPage>();
             navigationService.Register<EditStoryPageViewModel, EditStoryPage>();
             navigationService.Register<ReadingPageViewModel, ReadingPage>();

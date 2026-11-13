@@ -57,6 +57,8 @@ namespace SpanishReader
                 Path.Combine(AppContext.BaseDirectory, "TranslationModels", "esen", "config.yml")));
             services.AddSingleton<MainPageViewModel>();
             services.AddSingleton<MainPage>();
+            services.AddSingleton<SettingsPageViewModel>();
+            services.AddSingleton<SettingsPage>();
             services.AddSingleton<MainWindow>();
             services.AddSingleton<ImportPage>();
             services.AddSingleton<ImportPageViewModel>();

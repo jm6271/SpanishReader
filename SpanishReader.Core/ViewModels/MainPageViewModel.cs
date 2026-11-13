@@ -41,6 +41,7 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
     [NotifyCanExecuteChangedFor(nameof(DeleteStoryCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenStoryCommand))]
     [NotifyCanExecuteChangedFor(nameof(ImportStoryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenSettingsCommand))]
     public partial bool IsDeleting { get; set; }
 
     public bool CanUseLibrary => !IsDeleting;
@@ -124,6 +125,9 @@ public partial class MainPageViewModel(IStoryRepository repository, INavigationS
 
     [RelayCommand(CanExecute = nameof(CanUseLibrary))]
     private void ImportStory() => navigationService.Navigate<ImportPageViewModel>();
+
+    [RelayCommand(CanExecute = nameof(CanUseLibrary))]
+    private void OpenSettings() => navigationService.Navigate<SettingsPageViewModel>();
 
     [RelayCommand(CanExecute = nameof(CanUseLibrary))]
     private void OpenStory(Story? story)

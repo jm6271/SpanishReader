@@ -114,6 +114,8 @@
                                 </MenuFlyout>
                             </AppBarButton.Flyout>
                         </AppBarButton>
+                        <AppBarButton Icon="Setting" Label="Settings" Command="{x:Bind ViewModel.OpenSettingsCommand}"
+                                      AutomationProperties.AutomationId="OpenSettings" AutomationProperties.Name="Open settings" />
                     </CommandBar>
 
                     <!-- Closed InfoBars still occupy a StackPanel slot. Avoid

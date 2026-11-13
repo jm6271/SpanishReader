@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SpanishReader.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Themes/ReaderTheme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <Grid Background="{ThemeResource ReaderCanvasBrush}">
+        <Grid Margin="32,12,32,32" MaxWidth="1220">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Button Command="{x:Bind ViewModel.BackCommand}" Style="{StaticResource SubtleButtonStyle}"
+                    Foreground="{ThemeResource ReaderMutedBrush}" Padding="12,8" Margin="-12,0,0,12"
+                    HorizontalAlignment="Left" MinHeight="36"
+                    AutomationProperties.AutomationId="BackToLibrary" AutomationProperties.Name="Back to library"
+                    ToolTipService.ToolTip="Back to library">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE72B;" FontSize="12" />
+                    <TextBlock Text="Library" FontSize="13" />
+                </StackPanel>
+            </Button>
+
+            <Border Grid.Row="1" Background="{ThemeResource ReaderPaperBrush}"
+                    BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1" CornerRadius="4" Padding="24,20,24,16">
+                <TextBlock Text="Settings" Style="{StaticResource ReaderPageHeadingStyle}"
+                           AutomationProperties.AutomationId="SettingsHeading" />
+            </Border>
+        </Grid>
+    </Grid>
+</Page>
