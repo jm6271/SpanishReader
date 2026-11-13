@@ -9,20 +9,45 @@ namespace SpanishReader.Core.Services;
 /// <summary>Owns a lazily loaded GGUF model and runs independent chat requests.</summary>
 public sealed class LlamaSharpLLMService : ILLMService, IDisposable
 {
-    private readonly string _modelPath;
+    private string? _modelPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private LLamaWeights? _weights;
     private ModelParams? _modelParams;
     private bool _disposed;
 
-    public LlamaSharpLLMService(string modelPath)
+    public LlamaSharpLLMService(string? modelPath = null)
     {
+        if (modelPath is null) return;
         ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
         if (!Path.IsPathFullyQualified(modelPath))
             throw new ArgumentException("An absolute model path is required.", nameof(modelPath));
         if (!string.Equals(Path.GetExtension(modelPath), ".gguf", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("A .gguf model file is required.", nameof(modelPath));
         _modelPath = modelPath;
+    }
+
+    public string? ModelPath => _modelPath;
+
+    /// <summary>Waits for inference before switching models or releasing a file for deletion.</summary>
+    public async Task SetModelPathAsync(string? modelPath)
+    {
+        if (modelPath is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
+            if (!Path.IsPathFullyQualified(modelPath) || !string.Equals(Path.GetExtension(modelPath), ".gguf", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("An absolute .gguf model path is required.", nameof(modelPath));
+        }
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_modelPath == modelPath) return;
+            _weights?.Dispose();
+            _weights = null;
+            _modelParams = null;
+            _modelPath = modelPath;
+        }
+        finally { _gate.Release(); }
     }
 
     public async Task<string> ChatAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
@@ -36,6 +61,8 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_modelPath is null)
+                throw new FileNotFoundException("No GGUF model is installed.");
             if (_weights is null)
             {
                 if (!File.Exists(_modelPath))

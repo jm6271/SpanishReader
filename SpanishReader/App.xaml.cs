@@ -56,6 +56,10 @@ namespace SpanishReader
             services.AddSingleton<ITranslationService>(_ => new BergamotTranslationService(
                 Path.Combine(AppContext.BaseDirectory, "TranslationModels", "esen", "config.yml")));
             services.AddSingleton<MainPageViewModel>();
+            services.AddSingleton(_ => new ModelDownloadService(new HttpClient(),
+                Path.Combine(Path.GetDirectoryName(AppDataPath.GetDatabasePath())!, "Models", ModelDownloadService.FileName)));
+            services.AddSingleton<LlamaSharpLLMService>();
+            services.AddSingleton<ILLMService>(sp => sp.GetRequiredService<LlamaSharpLLMService>());
             services.AddSingleton<MainPage>();
             services.AddSingleton<SettingsPageViewModel>();
             services.AddSingleton<SettingsPage>();
@@ -87,6 +91,11 @@ namespace SpanishReader
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            // Resolve eagerly so the app has one LLM service throughout its lifetime.
+            var downloader = Services.GetRequiredService<ModelDownloadService>();
+            var llm = Services.GetRequiredService<LlamaSharpLLMService>();
+            if (downloader.IsInstalled)
+                llm.SetModelPathAsync(downloader.ModelPath).GetAwaiter().GetResult();
             Window = Services.GetRequiredService<MainWindow>();
             WindowPlacementService.Restore(Window, Services.GetRequiredService<WindowPlacementStore>());
             Window.Closed += OnWindowClosed;

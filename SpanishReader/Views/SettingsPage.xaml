@@ -2,7 +2,8 @@
 <Page
     x:Class="SpanishReader.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SpanishReader.Views">
 
     <Page.Resources>
         <ResourceDictionary>
@@ -32,8 +33,38 @@
 
             <Border Grid.Row="1" Background="{ThemeResource ReaderPaperBrush}"
                     BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1" CornerRadius="4" Padding="24,20,24,16">
-                <TextBlock Text="Settings" Style="{StaticResource ReaderPageHeadingStyle}"
-                           AutomationProperties.AutomationId="SettingsHeading" />
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Settings" Style="{StaticResource ReaderPageHeadingStyle}"
+                               AutomationProperties.AutomationId="SettingsHeading" />
+                    <Border Background="{ThemeResource ReaderNotesBrush}"
+                            BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1"
+                            CornerRadius="4" Padding="20" MaxWidth="720"
+                            AutomationProperties.AutomationId="LanguageModelCard">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="Language model (Optional)" FontSize="20" Foreground="{ThemeResource ReaderInkBrush}" />
+                            <TextBlock Text="Qwen3-1.7B-Q8_0 · GGUF · 1.83 GB" Foreground="{ThemeResource ReaderMutedBrush}" />
+                            <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" Foreground="{ThemeResource ReaderMutedBrush}"
+                                       AutomationProperties.AutomationId="ModelStatus" />
+                            <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressPercent, Mode=OneWay}"
+                                         Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsDownloading), Mode=OneWay}"
+                                         AutomationProperties.AutomationId="ModelProgress" />
+                            <InfoBar Severity="Error" IsClosable="False"
+                                     IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
+                                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="Download" Command="{x:Bind ViewModel.DownloadCommand}"
+                                        IsEnabled="{x:Bind ViewModel.CanDownload, Mode=OneWay}"
+                                        AutomationProperties.AutomationId="DownloadModel" />
+                                <Button Content="Cancel" Command="{x:Bind ViewModel.CancelDownloadCommand}"
+                                        Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsDownloading), Mode=OneWay}"
+                                        AutomationProperties.AutomationId="CancelModelDownload" />
+                                <Button Content="Delete" Click="OnDeleteClicked"
+                                        IsEnabled="{x:Bind ViewModel.CanDelete, Mode=OneWay}"
+                                        AutomationProperties.AutomationId="DeleteModel" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Border>
         </Grid>
     </Grid>

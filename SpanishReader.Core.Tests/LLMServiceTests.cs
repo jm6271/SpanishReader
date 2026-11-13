@@ -5,6 +5,18 @@ namespace SpanishReader.Core.Tests;
 public sealed class LLMServiceTests
 {
     [Fact]
+    public async Task ModelPath_CanBeAssignedAndClearedWithoutLoadingWeights()
+    {
+        using var service = new LlamaSharpLLMService();
+        var path = Path.Combine(Path.GetTempPath(), "downloaded-model.gguf");
+        Assert.Null(service.ModelPath);
+        await service.SetModelPathAsync(path);
+        Assert.Equal(path, service.ModelPath);
+        await service.SetModelPathAsync(null);
+        Assert.Null(service.ModelPath);
+    }
+
+    [Fact]
     public void Constructor_RequiresAnAbsoluteGgufPath()
     {
         Assert.Throws<ArgumentException>(() => new LlamaSharpLLMService("model.gguf"));
