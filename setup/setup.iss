@@ -10,6 +10,9 @@
 #ifndef PublishDir
   #define PublishDir "..\SpanishReader\bin\Release\net10.0-windows10.0.26100.0\win-x64\publish"
 #endif
+#ifndef AllowedArchitecture
+  #define AllowedArchitecture "x64compatible"
+#endif
 #define MyAppPublisher "Jordan Miller"
 #define MyAppURL "https://github.com/jm6271/SpanishReader"
 #define MyAppExeName "SpanishReader.exe"
@@ -27,14 +30,9 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
-; "ArchitecturesAllowed=x64compatible" specifies that Setup cannot run
-; on anything but x64 and Windows 11 on Arm.
-ArchitecturesAllowed=x64compatible
-; "ArchitecturesInstallIn64BitMode=x64compatible" requests that the
-; install be done in "64-bit mode" on x64 or Windows 11 on Arm,
-; meaning it should use the native 64-bit Program Files directory and
-; the 64-bit view of the registry.
-ArchitecturesInstallIn64BitMode=x64compatible
+; Match the installer to its published binary and use the native 64-bit paths.
+ArchitecturesAllowed={#AllowedArchitecture}
+ArchitecturesInstallIn64BitMode={#AllowedArchitecture}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE.txt
 ; Remove the following line to run in administrative install mode (install for all users).

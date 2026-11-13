@@ -18,8 +18,18 @@ env:
 
 jobs:
   installer:
-    name: Publish x64 installer
+    name: Publish ${{ matrix.arch }} installer
     runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            platform: x64
+            allowed: x64compatible
+          - arch: arm64
+            platform: ARM64
+            allowed: arm64
     timeout-minutes: 30
     defaults:
       run:
@@ -49,8 +59,8 @@ jobs:
       - name: Publish app
         run: >-
           dotnet publish SpanishReader/SpanishReader.csproj
-          --configuration Release --runtime win-x64 --self-contained true
-          -p:Platform=x64 -p:PublishProfile=win-x64
+          --configuration Release --runtime win-${{ matrix.arch }} --self-contained true
+          -p:Platform=${{ matrix.platform }} -p:PublishProfile=win-${{ matrix.arch }}
           -m:1 -p:UseSharedCompilation=false
           --output "${{ github.workspace }}/artifacts/publish"
 
@@ -61,7 +71,7 @@ jobs:
           if (!(Test-Path -LiteralPath $compiler)) {
             throw "Inno Setup compiler not found: $compiler"
           }
-          & $compiler "/DMyAppVersion=$env:APP_VERSION" "/DPublishDir=$env:GITHUB_WORKSPACE/artifacts/publish" "/O$env:GITHUB_WORKSPACE/artifacts/installer" "/Fspanishreader-setup-$env:APP_VERSION-x64" setup/setup.iss
+          & $compiler "/DMyAppVersion=$env:APP_VERSION" "/DPublishDir=$env:GITHUB_WORKSPACE/artifacts/publish" "/DAllowedArchitecture=${{ matrix.allowed }}" "/O$env:GITHUB_WORKSPACE/artifacts/installer" "/Fspanishreader-setup-$env:APP_VERSION-${{ matrix.arch }}" setup/setup.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload installer to this release
@@ -70,7 +80,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          $installer = "artifacts/installer/spanishreader-setup-$env:APP_VERSION-x64.exe"
+          $installer = "artifacts/installer/spanishreader-setup-$env:APP_VERSION-${{ matrix.arch }}.exe"
           if (!(Test-Path -LiteralPath $installer)) {
             throw "Installer not found: $installer"
           }
