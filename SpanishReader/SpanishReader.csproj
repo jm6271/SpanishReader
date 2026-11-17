@@ -99,4 +99,33 @@
     <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
     <_ExtraTrimmerArgs>$(_ExtraTrimmerArgs) --link-attributes &quot;$(MSBuildProjectDirectory)\Trimming\LLamaSharp.LinkAttributes.xml&quot;</_ExtraTrimmerArgs>
   </PropertyGroup>
+  <!-- Some native dependencies copy assets for every platform into runtimes even
+       during RID-specific publishing. Run after all publish copies so reused
+       output folders also lose stale assets from other publish targets. -->
+  <Target Name="RemoveUnneededPublishedRuntimes" AfterTargets="Publish"
+          Condition="'$(RuntimeIdentifier)' != '' and '$(PublishDir)' != ''">
+    <PropertyGroup>
+      <_PublishedRuntimesDirectory>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(PublishDir)', 'runtimes'))))</_PublishedRuntimesDirectory>
+    </PropertyGroup>
+    <ItemGroup Condition="Exists('$(_PublishedRuntimesDirectory)')">
+      <!-- Enumerate only immediate subdirectories, preserving everything inside
+           the target RID's folder, including native backend subdirectories. -->
+      <_UnneededPublishedRuntime Include="$([System.IO.Directory]::GetDirectories('$(_PublishedRuntimesDirectory)'))" />
+      <_UnneededPublishedRuntime Remove="@(_UnneededPublishedRuntime)"
+                                 Condition="'%(_UnneededPublishedRuntime.Filename)' == '$(RuntimeIdentifier)'" />
+    </ItemGroup>
+    <RemoveDir Directories="@(_UnneededPublishedRuntime)" />
+  </Target>
+	
+	<!-- Remove unused satellite resource languages -->
+	<Target Name="RemoveUnusedLanguages" AfterTargets="Publish">
+		<ItemGroup>
+			<UnusedMuiFiles Include="$(PublishDir)**\*.mui"
+							Exclude="$(PublishDir)en-us\*.mui" />
+		</ItemGroup>
+
+		<Delete Files="@(UnusedMuiFiles)" />
+
+		<RemoveDir Directories="@(UnusedMuiFiles->'%(RootDir)%(Directory)')" />
+	</Target>
 </Project>

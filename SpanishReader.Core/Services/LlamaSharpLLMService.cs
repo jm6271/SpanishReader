@@ -71,7 +71,7 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
                     throw new FileNotFoundException("The GGUF model file is missing.", _modelPath);
 
                 LlamaDiagnostics.Write("Loading model; LLamaSharp 0.30.0; CUDA/CPU automatic selection; Vulkan disabled.");
-                NativeLibraryConfig.All.WithCuda(true).WithVulkan(true).WithAutoFallback(true)
+                NativeLibraryConfig.All.WithCuda(false).WithVulkan(true).WithAutoFallback(true)
                     .WithLogCallback(LlamaDiagnostics.Callback);
                 NativeLogConfig.llama_log_set(LlamaDiagnostics.Callback);
                 _modelParams = new ModelParams(_modelPath)
