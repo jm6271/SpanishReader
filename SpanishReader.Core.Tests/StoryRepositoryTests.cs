@@ -506,7 +506,9 @@ public sealed class StoryRepositoryTests : IDisposable
         var repository = new SqliteStoryRepository(DatabasePath);
         var saved = await repository.AddAsync(ValidStory());
         var translation = new PendingTranslation();
-        var reader = new ReadingPageViewModel(new NoNavigation(), translation, repository);
+        var reader = new ReadingPageViewModel(new NoNavigation(), translation, repository,
+            new LlamaSharpLLMService(), new ModelDownloadService(new HttpClient(),
+                Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.gguf")));
         reader.PrepareForDisplay(saved);
         var pending = reader.SelectSentenceCommand.ExecuteAsync(saved.Sentences[0]);
         reader.Deactivate();

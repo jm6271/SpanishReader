@@ -1,5 +1,6 @@
 using SpanishReader.Core.Abstractions;
 using SpanishReader.Core.Models;
+using SpanishReader.Core.Services;
 using SpanishReader.Core.ViewModels;
 
 namespace SpanishReader.Core.Tests;
@@ -15,7 +16,7 @@ public class ReadingTests
         library.OpenStoryCommand.Execute(story);
         Assert.Equal(typeof(ReadingPageViewModel), navigation.Target);
         Assert.Same(story, navigation.Parameter);
-        var reader = new ReadingPageViewModel(navigation, new FakeTranslation(), new FakeRepository());
+        var reader = new ReadingPageViewModel(navigation, new FakeTranslation(), new FakeRepository(), new FakeLlm(), Models());
         reader.PrepareForDisplay(story);
         reader.BackCommand.Execute(null);
         Assert.Equal(typeof(MainPageViewModel), navigation.Target);
@@ -232,8 +233,108 @@ public class ReadingTests
         Assert.Equal("Second.", vm.SelectedEnglishText);
     }
 
+    [Fact]
+    public async Task RetranslationUsesParagraphContextAndReplacesSavedEnglish()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"reader-{Guid.NewGuid():N}.gguf");
+        File.WriteAllText(path, "installed");
+        try
+        {
+            var llm = new RecordingLlm { Respond = () => Task.FromResult("<think></think>  Contextual English. <think>  </think>") };
+            var repository = new FakeRepository();
+            var vm = new ReadingPageViewModel(new FakeNavigation(), new FakeTranslation(), repository,
+                llm, new ModelDownloadService(new HttpClient(), path));
+            var story = Story();
+            vm.PrepareForDisplay(story);
+            Assert.False(vm.CanRetranslate);
+            await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[1]);
+            Assert.True(vm.CanRetranslate);
+            await vm.RetranslateCommand.ExecuteAsync(null);
+            Assert.Contains("Previous paragraph:\nPrimera.", llm.UserPrompt);
+            Assert.Contains("Current paragraph:\nSegunda.", llm.UserPrompt);
+            Assert.Contains("<TARGET_SENTENCE>\nSegunda.\n</TARGET_SENTENCE>", llm.UserPrompt);
+            Assert.Equal("Contextual English.", vm.SelectedEnglishText);
+            Assert.Equal("Contextual English.", story.Sentences[1].EnglishText);
+            Assert.Equal((1L, 12L, "Contextual English."), Assert.Single(repository.Updates));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task RetranslationSaveRetryDoesNotCallModelAgain()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"reader-{Guid.NewGuid():N}.gguf");
+        File.WriteAllText(path, "installed");
+        try
+        {
+            var llm = new RecordingLlm();
+            var repository = new FakeRepository { Save = () => Task.FromException(new IOException("locked")) };
+            var vm = new ReadingPageViewModel(new FakeNavigation(), new FakeTranslation(), repository,
+                llm, new ModelDownloadService(new HttpClient(), path));
+            var story = Story();
+            vm.PrepareForDisplay(story);
+            await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[1]);
+            await vm.RetranslateCommand.ExecuteAsync(null);
+            Assert.NotEmpty(vm.SaveWarningMessage);
+            repository.Save = () => Task.CompletedTask;
+            await vm.RetryCommand.ExecuteAsync(null);
+            Assert.Empty(vm.SaveWarningMessage);
+            Assert.Equal(1, llm.Calls);
+            Assert.Equal(2, repository.Updates.Count);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task LateRetranslationSavesOriginalSentenceWithoutChangingNewSelection()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"reader-{Guid.NewGuid():N}.gguf");
+        File.WriteAllText(path, "installed");
+        try
+        {
+            var pending = new TaskCompletionSource<string>();
+            var llm = new RecordingLlm { Respond = () => pending.Task };
+            var repository = new FakeRepository();
+            var vm = new ReadingPageViewModel(new FakeNavigation(), new FakeTranslation(), repository,
+                llm, new ModelDownloadService(new HttpClient(), path));
+            var story = Story();
+            vm.PrepareForDisplay(story);
+            await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
+            var retranslation = vm.RetranslateCommand.ExecuteAsync(null);
+            await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[1]);
+            pending.SetResult("New first.");
+            await retranslation;
+            Assert.Equal("Second.", vm.SelectedEnglishText);
+            Assert.Equal("New first.", story.Sentences[0].EnglishText);
+            Assert.Equal((1L, 11L, "New first."), Assert.Single(repository.Updates));
+        }
+        finally { File.Delete(path); }
+    }
+
     private static ReadingPageViewModel Reader(FakeTranslation translation, FakeRepository repository) =>
-        new(new FakeNavigation(), translation, repository);
+        new(new FakeNavigation(), translation, repository, new FakeLlm(), Models());
+
+    private static ModelDownloadService Models() => new(new HttpClient(),
+        Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.gguf"));
+
+    private sealed class FakeLlm : ILLMService
+    {
+        public Task<string> ChatAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default) =>
+            Task.FromResult("Contextual English.");
+    }
+
+    private sealed class RecordingLlm : ILLMService
+    {
+        public int Calls { get; private set; }
+        public string UserPrompt { get; private set; } = string.Empty;
+        public Func<Task<string>> Respond { get; set; } = () => Task.FromResult("Contextual English.");
+        public Task<string> ChatAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            UserPrompt = userPrompt;
+            return Respond();
+        }
+    }
 
     private static Story Story(bool missingFirst = false) => new()
     {

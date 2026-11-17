@@ -208,6 +208,12 @@
                                                    Foreground="{ThemeResource ReaderInkBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
                                                    AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="SelectedEnglish" />
                                     </Grid>
+                                    <Button Content="Retranslate in context" Command="{x:Bind ViewModel.RetranslateCommand}"
+                                            Visibility="{x:Bind local:UiHelpers.When(ViewModel.CanRetranslate), Mode=OneWay}"
+                                            Style="{StaticResource SubtleButtonStyle}" Foreground="{ThemeResource ReaderInkBrush}"
+                                            AutomationProperties.AutomationId="ReaderRetranslate"
+                                            AutomationProperties.Name="Retranslate selected sentence in context"
+                                            ToolTipService.ToolTip="Uses the installed language model and surrounding paragraphs" />
                                     <StackPanel Orientation="Horizontal" Spacing="8"
                                                 Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsBusy), Mode=OneWay}">
                                         <ProgressRing Width="16" Height="16" Foreground="{ThemeResource ReaderAccentBrush}"

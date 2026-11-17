@@ -2,18 +2,21 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SpanishReader.Core.Abstractions;
 using SpanishReader.Core.Models;
+using SpanishReader.Core.Services;
 
 namespace SpanishReader.Core.ViewModels;
 
 public partial class ReadingPageViewModel(
     INavigationService navigationService, ITranslationService translationService,
-    IStoryRepository repository) : ObservableObject
+    IStoryRepository repository, ILLMService llm, ModelDownloadService models) : ObservableObject
 {
     private Story? _story;
     private StorySentence? _selectedSentence;
     private TranslationWork? _selectedWork;
     private long _selectionVersion;
     private bool _active;
+    private bool _retryRetranslation;
+    private readonly Dictionary<(long StoryId, long SentenceId), TranslationWork> _llmWork = [];
 
     // Keep pending work and unsaved English across page visits. Reopening a story
     // while its native translation is still running must not queue a duplicate.
@@ -23,11 +26,16 @@ public partial class ReadingPageViewModel(
     [ObservableProperty] public partial string EnglishTitle { get; set; } = string.Empty;
     [ObservableProperty] public partial string SelectedSpanishText { get; set; } = string.Empty;
     [ObservableProperty] public partial string SelectedEnglishText { get; set; } = string.Empty;
-    [ObservableProperty] public partial bool HasSelection { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetranslate))]
+    [NotifyCanExecuteChangedFor(nameof(RetranslateCommand))]
+    public partial bool HasSelection { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRetry))]
+    [NotifyPropertyChangedFor(nameof(CanRetranslate))]
     [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RetranslateCommand))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
@@ -41,6 +49,7 @@ public partial class ReadingPageViewModel(
     public partial string SaveWarningMessage { get; set; } = string.Empty;
 
     public bool CanRetry => !IsBusy && (ErrorMessage.Length > 0 || SaveWarningMessage.Length > 0);
+    public bool CanRetranslate => _active && HasSelection && !IsBusy && models.IsInstalled;
     public IReadOnlyList<StorySentence> Sentences => _story?.Sentences ?? [];
 
     public void PrepareForDisplay(Story story)
@@ -51,10 +60,13 @@ public partial class ReadingPageViewModel(
         _story = story;
         _selectedSentence = null;
         _selectedWork = null;
+        _retryRetranslation = false;
         Title = story.Title;
         EnglishTitle = story.EnglishTitle;
         SelectedSpanishText = SelectedEnglishText = ErrorMessage = SaveWarningMessage = string.Empty;
         HasSelection = IsBusy = false;
+        OnPropertyChanged(nameof(CanRetranslate));
+        RetranslateCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(Sentences));
     }
 
@@ -66,6 +78,8 @@ public partial class ReadingPageViewModel(
         _selectionVersion++;
         _selectedWork = null;
         IsBusy = false;
+        OnPropertyChanged(nameof(CanRetranslate));
+        RetranslateCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(AllowConcurrentExecutions = true)]
@@ -76,6 +90,7 @@ public partial class ReadingPageViewModel(
         var version = ++_selectionVersion;
         _selectedSentence = sentence;
         _selectedWork = null;
+        _retryRetranslation = false;
         HasSelection = true;
         SelectedSpanishText = sentence.SpanishText.Trim();
         SelectedEnglishText = sentence.EnglishText.Trim();
@@ -83,6 +98,28 @@ public partial class ReadingPageViewModel(
         IsBusy = false;
 
         var key = (story.Id, sentence.Id);
+        if (_llmWork.TryGetValue(key, out var llmWork))
+        {
+            if (llmWork.EnglishText.Length > 0)
+            {
+                SelectedEnglishText = llmWork.EnglishText;
+                sentence.EnglishText = llmWork.EnglishText;
+            }
+            if (llmWork.Pending is { IsCompleted: false })
+            {
+                IsBusy = true;
+                await llmWork.Pending;
+                if (!_active || version != _selectionVersion) return;
+                SelectedEnglishText = sentence.EnglishText;
+                IsBusy = false;
+            }
+            if (!llmWork.IsSaved && llmWork.EnglishText.Length > 0)
+            {
+                SaveWarningMessage = "The translation is available for this session, but could not be saved. Please try again.";
+                _retryRetranslation = true;
+            }
+            if (!string.IsNullOrWhiteSpace(sentence.EnglishText)) return;
+        }
         if (!_work.TryGetValue(key, out var work))
         {
             if (!string.IsNullOrWhiteSpace(sentence.EnglishText)) return;
@@ -105,6 +142,62 @@ public partial class ReadingPageViewModel(
         ErrorMessage = result.Error;
         SaveWarningMessage = result.SaveWarning;
         IsBusy = false;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRetranslate), AllowConcurrentExecutions = true)]
+    private async Task RetranslateAsync()
+    {
+        if (!CanRetranslate || _story is null || _selectedSentence is null) return;
+        var story = _story;
+        var sentence = _selectedSentence;
+        var version = _selectionVersion;
+        var key = (story.Id, sentence.Id);
+        var work = new TranslationWork();
+        _llmWork[key] = work;
+        _retryRetranslation = true;
+        ErrorMessage = SaveWarningMessage = string.Empty;
+        IsBusy = true;
+        work.Pending = RetranslateAndSaveAsync(story, sentence, work, version);
+        var result = await work.Pending;
+        if (!_active || version != _selectionVersion) return;
+        SelectedEnglishText = sentence.EnglishText;
+        ErrorMessage = result.Error;
+        SaveWarningMessage = result.SaveWarning;
+        IsBusy = false;
+    }
+
+    private async Task<TranslationResult> RetranslateAndSaveAsync(Story story, StorySentence sentence, TranslationWork work, long version)
+    {
+        try
+        {
+            var english = ContextualTranslationPrompt.CleanResponse(await llm.ChatAsync(
+                ContextualTranslationPrompt.System, ContextualTranslationPrompt.Create(story, sentence)));
+            if (string.IsNullOrWhiteSpace(english))
+                return new("The sentence could not be retranslated. Please try again.", string.Empty);
+            work.EnglishText = english.Trim();
+            sentence.EnglishText = work.EnglishText;
+            if (_active && version == _selectionVersion && ReferenceEquals(_selectedSentence, sentence))
+                SelectedEnglishText = work.EnglishText;
+        }
+        catch (Exception)
+        {
+            return new("The sentence could not be retranslated. Please try again.", string.Empty);
+        }
+        return await SaveRetranslationAsync(story.Id, sentence, work);
+    }
+
+    private async Task<TranslationResult> SaveRetranslationAsync(long storyId, StorySentence sentence, TranslationWork work)
+    {
+        try
+        {
+            await repository.UpdateSentenceTranslationAsync(storyId, sentence.Id, work.EnglishText);
+            work.IsSaved = true;
+            return new(string.Empty, string.Empty);
+        }
+        catch (Exception)
+        {
+            return new(string.Empty, "The translation is available for this session, but could not be saved. Please try again.");
+        }
     }
 
     private async Task<TranslationResult> TranslateAndSaveAsync(long storyId, StorySentence sentence, TranslationWork work)
@@ -145,7 +238,28 @@ public partial class ReadingPageViewModel(
     }
 
     [RelayCommand(CanExecute = nameof(CanRetry), AllowConcurrentExecutions = true)]
-    private Task RetryAsync() => SelectSentenceAsync(_selectedSentence);
+    private async Task RetryAsync()
+    {
+        if (_retryRetranslation && _story is { } story && _selectedSentence is { } sentence)
+        {
+            if (ErrorMessage.Length > 0)
+            {
+                await RetranslateAsync();
+                return;
+            }
+            if (_llmWork.TryGetValue((story.Id, sentence.Id), out var work) && work.EnglishText.Length > 0)
+            {
+                var version = _selectionVersion;
+                IsBusy = true;
+                var result = await SaveRetranslationAsync(story.Id, sentence, work);
+                if (!_active || version != _selectionVersion) return;
+                SaveWarningMessage = result.SaveWarning;
+                IsBusy = false;
+                return;
+            }
+        }
+        await SelectSentenceAsync(_selectedSentence);
+    }
 
     [RelayCommand]
     private void Back()

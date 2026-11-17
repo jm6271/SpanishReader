@@ -9,6 +9,8 @@ namespace SpanishReader.Core.Services;
 /// <summary>Owns a lazily loaded GGUF model and runs independent chat requests.</summary>
 public sealed class LlamaSharpLLMService : ILLMService, IDisposable
 {
+    private const int ContextTokens = 4096;
+    private const int MaxResponseTokens = 512;
     private string? _modelPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private LLamaWeights? _weights;
@@ -73,12 +75,22 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
                 NativeLibraryConfig.All.WithCuda(true).WithVulkan(true).WithAutoFallback(true);
                 _modelParams = new ModelParams(_modelPath)
                 {
-                    ContextSize = 4096,
+                    ContextSize = ContextTokens,
                     GpuLayerCount = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture ==
-                        System.Runtime.InteropServices.Architecture.Arm64 ? 0 : 99
+                        System.Runtime.InteropServices.Architecture.Arm64 ? 0 : 99,
                 };
                 _weights = await LLamaWeights.LoadFromFileAsync(_modelParams, cancellationToken).ConfigureAwait(false);
             }
+
+            // llama.cpp can abort the process if an oversized prompt reaches its
+            // native context. Count the model's actual chat template and leave
+            // room for the response before starting inference.
+            var template = new LLamaTemplate(_weights);
+            template.Add("system", systemPrompt).Add("user", userPrompt);
+            var formattedPrompt = Encoding.UTF8.GetString(template.Apply());
+            var promptTokens = _weights.Tokenize(formattedPrompt, true, true, Encoding.UTF8).Length;
+            if (promptTokens > ContextTokens - MaxResponseTokens - 32)
+                throw new ArgumentException("The prompt is too long for the language model context.", nameof(userPrompt));
 
             // A fresh executor prevents one call's prompts from entering the next.
             var executor = new StatelessExecutor(_weights, _modelParams!)
@@ -87,7 +99,7 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
                 SystemMessage = systemPrompt
             };
             var response = new StringBuilder();
-            var options = new InferenceParams { MaxTokens = 512 };
+            var options = new InferenceParams { MaxTokens = MaxResponseTokens };
             await foreach (var chunk in executor.InferAsync(userPrompt, options, cancellationToken).ConfigureAwait(false))
                 response.Append(chunk);
             return response.ToString().Trim();

@@ -81,7 +81,9 @@ public class TranslationTests(ITestOutputHelper output)
                 Title = "Prueba", Sentences = [new() { SpanishText = "  Hola, mundo.\r\n\r\n" }]
             });
             using var translation = new BergamotTranslationService(ConfigPath);
-            var reader = new ReadingPageViewModel(new ImportNavigation(), translation, repository);
+            var reader = new ReadingPageViewModel(new ImportNavigation(), translation, repository,
+                new LlamaSharpLLMService(), new ModelDownloadService(new HttpClient(),
+                    Path.Combine(Path.GetTempPath(), $"missing-{Guid.NewGuid():N}.gguf")));
             reader.PrepareForDisplay(story);
             await reader.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
             Assert.Empty(reader.ErrorMessage);
