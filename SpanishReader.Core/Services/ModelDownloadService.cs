@@ -1,18 +1,19 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
-using System.Diagnostics;
 
 namespace SpanishReader.Core.Services;
 
 /// <summary>Downloads the one supported model without exposing an incomplete GGUF file.</summary>
-public sealed class ModelDownloadService(HttpClient client, string modelPath, string? expectedSha256 = null)
+public sealed class ModelDownloadService(HttpClient client, string modelPath, string? expectedSha256 = null,
+    TimeProvider? timeProvider = null)
 {
     public const string FileName = "Qwen3-1.7B-Q8_0.gguf";
     public const string Url = "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf";
     public const string ExpectedSha256 = "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a";
 
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     public string ModelPath { get; } = Path.GetFullPath(modelPath);
     public string PartialPath => ModelPath + ".partial";
     public bool IsInstalled => File.Exists(ModelPath);
@@ -44,7 +45,7 @@ public sealed class ModelDownloadService(HttpClient client, string modelPath, st
                 byte[] buffer = new byte[81920];
                 long received = offset;
                 progress?.Report((received, total));
-                long lastReport = Stopwatch.GetTimestamp();
+                long lastReport = _timeProvider.GetTimestamp();
                 int count;
                 while ((count = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) != 0)
                 {
@@ -52,8 +53,8 @@ public sealed class ModelDownloadService(HttpClient client, string modelPath, st
                     received += count;
                     // Progress<T> queues callbacks on the WinUI dispatcher. Reporting
                     // each small read can bury user input under thousands of updates.
-                    long now = Stopwatch.GetTimestamp();
-                    if (Stopwatch.GetElapsedTime(lastReport, now) >= TimeSpan.FromMilliseconds(250))
+                    long now = _timeProvider.GetTimestamp();
+                    if (_timeProvider.GetElapsedTime(lastReport, now) >= TimeSpan.FromMilliseconds(250))
                     {
                         progress?.Report((received, total));
                         lastReport = now;

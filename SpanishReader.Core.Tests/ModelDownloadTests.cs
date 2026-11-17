@@ -56,8 +56,11 @@ public sealed class ModelDownloadTests
         finally { Directory.Delete(directory, true); }
     }
 
-    [Fact]
-    public async Task Download_DoesNotReportEveryBufferToUi()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(125)]
+    [InlineData(250)]
+    public async Task Download_ReportsProgressAtQuarterSecondIntervals(int millisecondsPerBuffer)
     {
         byte[] bytes = new byte[4 * 1024 * 1024];
         string directory = Path.Combine(Path.GetTempPath(), $"model-test-{Guid.NewGuid():N}");
@@ -68,13 +71,37 @@ public sealed class ModelDownloadTests
             {
                 Content = new ByteArrayContent(bytes)
             }));
-            var service = new ModelDownloadService(client, path, Convert.ToHexStringLower(SHA256.HashData(bytes)));
+            // Advance only when the downloader samples time, once after each buffer.
+            // Disk speed and CI scheduling must not determine the expected reports.
+            var clock = new BufferTimeProvider(millisecondsPerBuffer);
+            var service = new ModelDownloadService(client, path, Convert.ToHexStringLower(SHA256.HashData(bytes)), clock);
             var reports = new List<(long Received, long? Total)>();
             await service.DownloadAsync(new InlineProgress(value => reports.Add(value)));
-            Assert.InRange(reports.Count, 2, 5);
-            Assert.Equal(bytes.Length, reports[^1].Received);
+            const int bufferSize = 81920;
+            int bufferCount = (bytes.Length + bufferSize - 1) / bufferSize;
+            var expected = new List<(long Received, long? Total)> { (0, bytes.Length) };
+            for (int buffer = 1; buffer <= bufferCount; buffer++)
+            {
+                if (millisecondsPerBuffer > 0 && buffer % (250 / millisecondsPerBuffer) == 0)
+                    expected.Add((Math.Min((long)buffer * bufferSize, bytes.Length), bytes.Length));
+            }
+            // Completion is always reported, including when no interval has elapsed.
+            expected.Add((bytes.Length, bytes.Length));
+            Assert.Equal(expected, reports);
         }
         finally { Directory.Delete(directory, true); }
+    }
+
+    private sealed class BufferTimeProvider(int millisecondsPerBuffer) : TimeProvider
+    {
+        private long _timestamp;
+        public override long TimestampFrequency => 1000;
+        public override long GetTimestamp()
+        {
+            long timestamp = _timestamp;
+            _timestamp += millisecondsPerBuffer;
+            return timestamp;
+        }
     }
 
     private sealed class InlineProgress(Action<(long Received, long? Total)> report) : IProgress<(long Received, long? Total)>
