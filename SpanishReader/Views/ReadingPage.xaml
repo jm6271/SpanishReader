@@ -202,18 +202,59 @@
                                                    FontFamily="Georgia" FontSize="18" FontStyle="Italic" LineHeight="29"
                                                    Foreground="{ThemeResource ReaderMutedBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
                                                    AutomationProperties.AutomationId="SelectedSpanish" />
-                                        <TextBlock x:Name="EnglishLabel" Grid.Row="2" Text="ENGLISH" Margin="0,16,0,0" Style="{StaticResource ReaderLabelStyle}" />
-                                        <TextBlock x:Name="EnglishText" Grid.Row="3" Text="{x:Bind ViewModel.SelectedEnglishText, Mode=OneWay}" Language="en"
-                                                   FontFamily="Georgia" FontSize="21" LineHeight="32"
-                                                   Foreground="{ThemeResource ReaderInkBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
-                                                   AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="SelectedEnglish" />
+                                        <Grid x:Name="EnglishLabel" Grid.Row="2" Margin="0,16,0,0">
+                                            <TextBlock Text="ENGLISH" Style="{StaticResource ReaderLabelStyle}" VerticalAlignment="Center" />
+                                            <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                                <Button Command="{x:Bind ViewModel.BeginEditCommand}" Width="32" Height="32" Padding="4"
+                                                        Style="{StaticResource SubtleButtonStyle}" Foreground="{ThemeResource ReaderInkBrush}"
+                                                        IsEnabled="{x:Bind local:UiHelpers.Not(ViewModel.IsBusy), Mode=OneWay}"
+                                                        Visibility="{x:Bind local:UiHelpers.WhenNot(ViewModel.IsEditingTranslation), Mode=OneWay}"
+                                                        AutomationProperties.AutomationId="ReaderEditTranslation" AutomationProperties.Name="Edit translation manually"
+                                                        ToolTipService.ToolTip="Edit translation manually">
+                                                    <SymbolIcon Symbol="Edit" />
+                                                </Button>
+                                                <Button Command="{x:Bind ViewModel.RetranslateWithBergamotCommand}" Width="32" Height="32" Padding="4"
+                                                        Style="{StaticResource SubtleButtonStyle}" Foreground="{ThemeResource ReaderInkBrush}"
+                                                        IsEnabled="{x:Bind ViewModel.CanRetranslateWithBergamot, Mode=OneWay}"
+                                                        Visibility="{x:Bind local:UiHelpers.WhenNot(ViewModel.IsEditingTranslation), Mode=OneWay}"
+                                                        AutomationProperties.AutomationId="ReaderBergamotRetranslate" AutomationProperties.Name="Retranslate with Bergamot"
+                                                        ToolTipService.ToolTip="Retranslate with default Bergamot model">
+                                                    <SymbolIcon Symbol="Refresh" />
+                                                </Button>
+                                                <Button Command="{x:Bind ViewModel.RetranslateCommand}" Width="32" Height="32" Padding="4"
+                                                        Style="{StaticResource SubtleButtonStyle}" Foreground="{ThemeResource ReaderInkBrush}"
+                                                        Visibility="{x:Bind local:UiHelpers.When(ViewModel.CanRetranslate), Mode=OneWay}"
+                                                        AutomationProperties.AutomationId="ReaderRetranslate" AutomationProperties.Name="Retranslate in context"
+                                                        ToolTipService.ToolTip="Retranslate in context using surrounding paragraphs">
+                                                    <FontIcon Glyph="&#xE8F2;" FontSize="16" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                        <Grid x:Name="EnglishText" Grid.Row="3">
+                                            <TextBlock Text="{x:Bind ViewModel.SelectedEnglishText, Mode=OneWay}" Language="en"
+                                                       FontFamily="Georgia" FontSize="21" LineHeight="32"
+                                                       Foreground="{ThemeResource ReaderInkBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                                       Tapped="OnEnglishTextTapped"
+                                                       Visibility="{x:Bind local:UiHelpers.WhenNot(ViewModel.IsEditingTranslation), Mode=OneWay}"
+                                                       ToolTipService.ToolTip="Click to edit translation"
+                                                       AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="SelectedEnglish" />
+                                            <StackPanel Spacing="8" Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsEditingTranslation), Mode=OneWay}">
+                                                <TextBox x:Name="EnglishEditor" Text="{x:Bind ViewModel.EditedEnglishText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="96" Language="en"
+                                                         AutomationProperties.AutomationId="ReaderEnglishEditor" AutomationProperties.Name="Edit English translation" />
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <Button Content="Save" Command="{x:Bind ViewModel.SaveEditCommand}"
+                                                            AutomationProperties.AutomationId="ReaderSaveTranslation" />
+                                                    <Button Content="Cancel" Command="{x:Bind ViewModel.CancelEditCommand}"
+                                                            IsEnabled="{x:Bind local:UiHelpers.Not(ViewModel.IsBusy), Mode=OneWay}"
+                                                            AutomationProperties.AutomationId="ReaderCancelTranslation" />
+                                                </StackPanel>
+                                                <InfoBar IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.EditSaveError), Mode=OneWay}"
+                                                         Message="{x:Bind ViewModel.EditSaveError, Mode=OneWay}" Severity="Error" IsClosable="False"
+                                                         AutomationProperties.AutomationId="ReaderEditSaveError" />
+                                            </StackPanel>
+                                        </Grid>
                                     </Grid>
-                                    <Button Content="Retranslate in context" Command="{x:Bind ViewModel.RetranslateCommand}"
-                                            Visibility="{x:Bind local:UiHelpers.When(ViewModel.CanRetranslate), Mode=OneWay}"
-                                            Style="{StaticResource SubtleButtonStyle}" Foreground="{ThemeResource ReaderInkBrush}"
-                                            AutomationProperties.AutomationId="ReaderRetranslate"
-                                            AutomationProperties.Name="Retranslate selected sentence in context"
-                                            ToolTipService.ToolTip="Uses the installed language model and surrounding paragraphs" />
                                     <StackPanel Orientation="Horizontal" Spacing="8"
                                                 Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsBusy), Mode=OneWay}">
                                         <ProgressRing Width="16" Height="16" Foreground="{ThemeResource ReaderAccentBrush}"

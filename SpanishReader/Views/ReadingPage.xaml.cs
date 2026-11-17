@@ -140,6 +140,12 @@ public sealed partial class ReadingPage : Page, INavigationAware
 
     private void OnStop(object sender, RoutedEventArgs e) => Player.Stop();
 
+    private void OnEnglishTextTapped(object sender, TappedRoutedEventArgs e)
+    {
+        ViewModel.BeginEditCommand.Execute(null);
+        if (ViewModel.IsEditingTranslation) EnglishEditor.Focus(FocusState.Programmatic);
+    }
+
     private void OnSpokenWord(SpokenWord? word)
     {
         spokenWord = word;

@@ -9,7 +9,7 @@ namespace SpanishReader.Core.Services;
 /// <summary>Owns a lazily loaded GGUF model and runs independent chat requests.</summary>
 public sealed class LlamaSharpLLMService : ILLMService, IDisposable
 {
-    private const int ContextTokens = 4096;
+    private const int ContextTokens = 2048;
     private const int MaxResponseTokens = 512;
     private string? _modelPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -70,29 +70,34 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
                 if (!File.Exists(_modelPath))
                     throw new FileNotFoundException("The GGUF model file is missing.", _modelPath);
 
-                // LLamaSharp tries CUDA, Vulkan, then CPU. Its Windows ARM64
-                // package provides CPU binaries only.
-                NativeLibraryConfig.All.WithCuda(true).WithVulkan(true).WithAutoFallback(true);
+                LlamaDiagnostics.Write("Loading model; LLamaSharp 0.30.0; CUDA/CPU automatic selection; Vulkan disabled.");
+                NativeLibraryConfig.All.WithCuda(true).WithVulkan(true).WithAutoFallback(true)
+                    .WithLogCallback(LlamaDiagnostics.Callback);
+                NativeLogConfig.llama_log_set(LlamaDiagnostics.Callback);
                 _modelParams = new ModelParams(_modelPath)
                 {
                     ContextSize = ContextTokens,
                     GpuLayerCount = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture ==
                         System.Runtime.InteropServices.Architecture.Arm64 ? 0 : 99,
+                    BatchSize = 128,
+                    UBatchSize = 128
                 };
                 _weights = await LLamaWeights.LoadFromFileAsync(_modelParams, cancellationToken).ConfigureAwait(false);
+                LlamaDiagnostics.Write("Model loaded.");
             }
 
-            // llama.cpp can abort the process if an oversized prompt reaches its
-            // native context. Count the model's actual chat template and leave
-            // room for the response before starting inference.
+            // Keep the prompt and response within the configured context budget.
+            // This is a size guard, not a recovery mechanism for native crashes.
+            LlamaDiagnostics.Write("Formatting and tokenizing prompt.");
             var template = new LLamaTemplate(_weights);
             template.Add("system", systemPrompt).Add("user", userPrompt);
             var formattedPrompt = Encoding.UTF8.GetString(template.Apply());
             var promptTokens = _weights.Tokenize(formattedPrompt, true, true, Encoding.UTF8).Length;
+            LlamaDiagnostics.Write($"Prompt tokens={promptTokens}; context={ContextTokens}; response limit={MaxResponseTokens}.");
             if (promptTokens > ContextTokens - MaxResponseTokens - 32)
                 throw new ArgumentException("The prompt is too long for the language model context.", nameof(userPrompt));
 
-            // A fresh executor prevents one call's prompts from entering the next.
+            LlamaDiagnostics.Write("Creating stateless executor.");
             var executor = new StatelessExecutor(_weights, _modelParams!)
             {
                 ApplyTemplate = true,
@@ -100,9 +105,19 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
             };
             var response = new StringBuilder();
             var options = new InferenceParams { MaxTokens = MaxResponseTokens };
+            LlamaDiagnostics.Write("Starting inference.");
             await foreach (var chunk in executor.InferAsync(userPrompt, options, cancellationToken).ConfigureAwait(false))
+            {
+                if (response.Length == 0) LlamaDiagnostics.Write("Received first output chunk.");
                 response.Append(chunk);
+            }
+            LlamaDiagnostics.Write("Inference completed.");
             return response.ToString().Trim();
+        }
+        catch (Exception ex)
+        {
+            LlamaDiagnostics.Write($"Managed failure: {ex}");
+            throw;
         }
         finally
         {

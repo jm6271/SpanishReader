@@ -55,6 +55,76 @@ public class ReadingTests
     }
 
     [Fact]
+    public async Task ManualEditSavesSelectedSentenceAndIsVisibleOnReselection()
+    {
+        var repository = new FakeRepository();
+        var vm = Reader(new FakeTranslation(), repository);
+        var story = Story();
+        vm.PrepareForDisplay(story);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[1]);
+
+        vm.BeginEditCommand.Execute(null);
+        Assert.Equal("Second.", vm.EditedEnglishText);
+        vm.EditedEnglishText = "  My translation.  ";
+        await vm.SaveEditCommand.ExecuteAsync(null);
+
+        Assert.Equal((1L, 12L, "My translation."), Assert.Single(repository.Updates));
+        Assert.Equal("My translation.", vm.SelectedEnglishText);
+        Assert.False(vm.IsEditingTranslation);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[1]);
+        Assert.Equal("My translation.", vm.SelectedEnglishText);
+    }
+
+    [Fact]
+    public async Task FailedManualSaveRetainsDraftForRetryAndCancelLeavesOriginal()
+    {
+        var repository = new FakeRepository { Save = () => Task.FromException(new IOException("locked")) };
+        var vm = Reader(new FakeTranslation(), repository);
+        var story = Story();
+        vm.PrepareForDisplay(story);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
+        vm.BeginEditCommand.Execute(null);
+        vm.EditedEnglishText = "  Corrected.  ";
+        await vm.SaveEditCommand.ExecuteAsync(null);
+        Assert.True(vm.IsEditingTranslation);
+        Assert.Equal("  Corrected.  ", vm.EditedEnglishText);
+        Assert.Equal("First.", vm.SelectedEnglishText);
+        Assert.NotEmpty(vm.EditSaveError);
+
+        repository.Save = () => Task.CompletedTask;
+        await vm.SaveEditCommand.ExecuteAsync(null);
+        Assert.Equal("Corrected.", story.Sentences[0].EnglishText);
+        Assert.Empty(vm.EditSaveError);
+        vm.BeginEditCommand.Execute(null);
+        vm.EditedEnglishText = "Discard this";
+        vm.CancelEditCommand.Execute(null);
+        Assert.Equal("Corrected.", vm.SelectedEnglishText);
+        Assert.Equal(2, repository.Updates.Count);
+    }
+
+    [Fact]
+    public async Task ManualSaveDoesNotChangeASelectionMadeWhileDatabaseIsSaving()
+    {
+        var pendingSave = new TaskCompletionSource();
+        var repository = new FakeRepository { Save = () => pendingSave.Task };
+        var vm = Reader(new FakeTranslation(), repository);
+        var story = Story();
+        vm.PrepareForDisplay(story);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
+        vm.BeginEditCommand.Execute(null);
+        vm.EditedEnglishText = "Edited first.";
+        var save = vm.SaveEditCommand.ExecuteAsync(null);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[1]);
+        pendingSave.SetResult();
+        await save;
+
+        Assert.Equal("Second.", vm.SelectedEnglishText);
+        Assert.Equal("Edited first.", story.Sentences[0].EnglishText);
+        Assert.Equal((1L, 11L, "Edited first."), Assert.Single(repository.Updates));
+    }
+
+    [Fact]
     public async Task MissingEnglishIsTranslatedTrimmedSavedAndReused()
     {
         var translation = new FakeTranslation { Translate = _ => Task.FromResult("  First.  ") };
@@ -72,6 +142,69 @@ public class ReadingTests
         await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
         Assert.Single(translation.Calls);
         Assert.Single(repository.Updates);
+    }
+
+    [Fact]
+    public async Task BergamotRetranslationReplacesStoredEnglishAndSavesIt()
+    {
+        var translation = new FakeTranslation { Translate = _ => Task.FromResult("  New English.  ") };
+        var repository = new FakeRepository();
+        var vm = Reader(translation, repository);
+        var story = Story();
+        vm.PrepareForDisplay(story);
+        Assert.False(vm.CanRetranslateWithBergamot);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
+        Assert.True(vm.CanRetranslateWithBergamot);
+
+        await vm.RetranslateWithBergamotCommand.ExecuteAsync(null);
+
+        Assert.Equal("Primera.", Assert.Single(translation.Calls));
+        Assert.Equal((1L, 11L, "New English."), Assert.Single(repository.Updates));
+        Assert.Equal("New English.", vm.SelectedEnglishText);
+        Assert.Equal("New English.", story.Sentences[0].EnglishText);
+        Assert.False(vm.CanRetry);
+    }
+
+    [Fact]
+    public async Task BergamotSaveFailureRetriesWithoutTranslatingAgain()
+    {
+        var translation = new FakeTranslation();
+        var repository = new FakeRepository { Save = () => Task.FromException(new IOException("locked")) };
+        var vm = Reader(translation, repository);
+        var story = Story();
+        vm.PrepareForDisplay(story);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[1]);
+
+        await vm.RetranslateWithBergamotCommand.ExecuteAsync(null);
+        Assert.Equal("English: Segunda.", vm.SelectedEnglishText);
+        Assert.NotEmpty(vm.SaveWarningMessage);
+        repository.Save = () => Task.CompletedTask;
+        await vm.RetryCommand.ExecuteAsync(null);
+
+        Assert.Single(translation.Calls);
+        Assert.Equal(2, repository.Updates.Count);
+        Assert.Empty(vm.SaveWarningMessage);
+    }
+
+    [Fact]
+    public async Task BergamotFailureCanRetryWithoutReplacingOriginalEnglish()
+    {
+        var translation = new FakeTranslation { Translate = _ => Task.FromException<string>(new IOException("model")) };
+        var repository = new FakeRepository();
+        var vm = Reader(translation, repository);
+        var story = Story();
+        vm.PrepareForDisplay(story);
+        await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[0]);
+        await vm.RetranslateWithBergamotCommand.ExecuteAsync(null);
+        Assert.Equal("First.", vm.SelectedEnglishText);
+        Assert.Empty(repository.Updates);
+        Assert.True(vm.CanRetry);
+
+        translation.Translate = _ => Task.FromResult("Corrected.");
+        await vm.RetryCommand.ExecuteAsync(null);
+        Assert.Equal("Corrected.", vm.SelectedEnglishText);
+        Assert.Equal(2, translation.Calls.Count);
+        Assert.Equal((1L, 11L, "Corrected."), Assert.Single(repository.Updates));
     }
 
     [Theory]

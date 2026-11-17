@@ -16,6 +16,7 @@ public partial class ReadingPageViewModel(
     private long _selectionVersion;
     private bool _active;
     private bool _retryRetranslation;
+    private bool _retryBergamot;
     private readonly Dictionary<(long StoryId, long SentenceId), TranslationWork> _llmWork = [];
 
     // Keep pending work and unsaved English across page visits. Reopening a story
@@ -27,15 +28,36 @@ public partial class ReadingPageViewModel(
     [ObservableProperty] public partial string SelectedSpanishText { get; set; } = string.Empty;
     [ObservableProperty] public partial string SelectedEnglishText { get; set; } = string.Empty;
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSaveEdit))]
+    [NotifyCanExecuteChangedFor(nameof(SaveEditCommand))]
+    public partial string EditedEnglishText { get; set; } = string.Empty;
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRetranslate))]
+    [NotifyPropertyChangedFor(nameof(CanRetranslateWithBergamot))]
+    [NotifyPropertyChangedFor(nameof(CanSaveEdit))]
+    [NotifyPropertyChangedFor(nameof(CanRetry))]
     [NotifyCanExecuteChangedFor(nameof(RetranslateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RetranslateWithBergamotCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveEditCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
+    public partial bool IsEditingTranslation { get; set; }
+    [ObservableProperty] public partial string EditSaveError { get; set; } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanRetranslate))]
+    [NotifyPropertyChangedFor(nameof(CanRetranslateWithBergamot))]
+    [NotifyCanExecuteChangedFor(nameof(RetranslateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RetranslateWithBergamotCommand))]
     public partial bool HasSelection { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRetry))]
     [NotifyPropertyChangedFor(nameof(CanRetranslate))]
+    [NotifyPropertyChangedFor(nameof(CanRetranslateWithBergamot))]
     [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetranslateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RetranslateWithBergamotCommand))]
+    [NotifyPropertyChangedFor(nameof(CanSaveEdit))]
+    [NotifyCanExecuteChangedFor(nameof(SaveEditCommand))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
@@ -48,8 +70,10 @@ public partial class ReadingPageViewModel(
     [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
     public partial string SaveWarningMessage { get; set; } = string.Empty;
 
-    public bool CanRetry => !IsBusy && (ErrorMessage.Length > 0 || SaveWarningMessage.Length > 0);
-    public bool CanRetranslate => _active && HasSelection && !IsBusy && models.IsInstalled;
+    public bool CanRetry => !IsBusy && !IsEditingTranslation && (ErrorMessage.Length > 0 || SaveWarningMessage.Length > 0);
+    public bool CanRetranslate => _active && HasSelection && !IsBusy && !IsEditingTranslation && models.IsInstalled;
+    public bool CanRetranslateWithBergamot => _active && HasSelection && !IsBusy && !IsEditingTranslation;
+    public bool CanSaveEdit => _active && IsEditingTranslation && !IsBusy && !string.IsNullOrWhiteSpace(EditedEnglishText);
     public IReadOnlyList<StorySentence> Sentences => _story?.Sentences ?? [];
 
     public void PrepareForDisplay(Story story)
@@ -61,12 +85,17 @@ public partial class ReadingPageViewModel(
         _selectedSentence = null;
         _selectedWork = null;
         _retryRetranslation = false;
+        _retryBergamot = false;
         Title = story.Title;
         EnglishTitle = story.EnglishTitle;
         SelectedSpanishText = SelectedEnglishText = ErrorMessage = SaveWarningMessage = string.Empty;
+        EditedEnglishText = EditSaveError = string.Empty;
+        IsEditingTranslation = false;
         HasSelection = IsBusy = false;
         OnPropertyChanged(nameof(CanRetranslate));
+        OnPropertyChanged(nameof(CanRetranslateWithBergamot));
         RetranslateCommand.NotifyCanExecuteChanged();
+        RetranslateWithBergamotCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(Sentences));
     }
 
@@ -77,9 +106,12 @@ public partial class ReadingPageViewModel(
         _active = false;
         _selectionVersion++;
         _selectedWork = null;
+        IsEditingTranslation = false;
         IsBusy = false;
         OnPropertyChanged(nameof(CanRetranslate));
+        OnPropertyChanged(nameof(CanRetranslateWithBergamot));
         RetranslateCommand.NotifyCanExecuteChanged();
+        RetranslateWithBergamotCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(AllowConcurrentExecutions = true)]
@@ -91,6 +123,9 @@ public partial class ReadingPageViewModel(
         _selectedSentence = sentence;
         _selectedWork = null;
         _retryRetranslation = false;
+        _retryBergamot = false;
+        IsEditingTranslation = false;
+        EditSaveError = string.Empty;
         HasSelection = true;
         SelectedSpanishText = sentence.SpanishText.Trim();
         SelectedEnglishText = sentence.EnglishText.Trim();
@@ -144,6 +179,61 @@ public partial class ReadingPageViewModel(
         IsBusy = false;
     }
 
+    [RelayCommand]
+    private void BeginEdit()
+    {
+        if (!_active || !HasSelection || IsBusy || _selectedSentence is null) return;
+        EditedEnglishText = SelectedEnglishText;
+        EditSaveError = string.Empty;
+        IsEditingTranslation = true;
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        if (IsBusy) return;
+        IsEditingTranslation = false;
+        EditSaveError = string.Empty;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSaveEdit), AllowConcurrentExecutions = true)]
+    private async Task SaveEditAsync()
+    {
+        if (!CanSaveEdit || _story is null || _selectedSentence is null) return;
+        var storyId = _story.Id;
+        var sentence = _selectedSentence;
+        var version = _selectionVersion;
+        var english = EditedEnglishText.Trim();
+        EditSaveError = string.Empty;
+        IsBusy = true;
+        try
+        {
+            // Publish the edit only after SQLite accepts it. A failed save keeps
+            // both the original displayed translation and the user's draft.
+            await repository.UpdateSentenceTranslationAsync(storyId, sentence.Id, english);
+            sentence.EnglishText = english;
+            _work.Remove((storyId, sentence.Id));
+            _llmWork.Remove((storyId, sentence.Id));
+            if (_active && version == _selectionVersion)
+            {
+                SelectedEnglishText = english;
+                IsEditingTranslation = false;
+                ErrorMessage = SaveWarningMessage = string.Empty;
+                _retryRetranslation = false;
+                _retryBergamot = false;
+            }
+        }
+        catch (Exception)
+        {
+            if (_active && version == _selectionVersion)
+                EditSaveError = "The edited translation could not be saved. Please try again.";
+        }
+        finally
+        {
+            if (_active && version == _selectionVersion) IsBusy = false;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanRetranslate), AllowConcurrentExecutions = true)]
     private async Task RetranslateAsync()
     {
@@ -155,12 +245,40 @@ public partial class ReadingPageViewModel(
         var work = new TranslationWork();
         _llmWork[key] = work;
         _retryRetranslation = true;
+        _retryBergamot = false;
         ErrorMessage = SaveWarningMessage = string.Empty;
         IsBusy = true;
         work.Pending = RetranslateAndSaveAsync(story, sentence, work, version);
         var result = await work.Pending;
         if (!_active || version != _selectionVersion) return;
         SelectedEnglishText = sentence.EnglishText;
+        ErrorMessage = result.Error;
+        SaveWarningMessage = result.SaveWarning;
+        IsBusy = false;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRetranslateWithBergamot), AllowConcurrentExecutions = true)]
+    private async Task RetranslateWithBergamotAsync()
+    {
+        if (!CanRetranslateWithBergamot || _story is null || _selectedSentence is null) return;
+        var storyId = _story.Id;
+        var sentence = _selectedSentence;
+        var version = _selectionVersion;
+        var key = (storyId, sentence.Id);
+        // A fresh request always invokes Bergamot, even when English already
+        // exists. Keep its work for a save-only retry if SQLite rejects it.
+        var work = new TranslationWork();
+        _work[key] = work;
+        _llmWork.Remove(key);
+        _selectedWork = work;
+        _retryRetranslation = false;
+        _retryBergamot = true;
+        ErrorMessage = SaveWarningMessage = string.Empty;
+        IsBusy = true;
+        work.Pending = TranslateAndSaveAsync(storyId, sentence, work);
+        var result = await work.Pending;
+        if (!_active || version != _selectionVersion) return;
+        SelectedEnglishText = work.EnglishText.Length > 0 ? work.EnglishText : sentence.EnglishText;
         ErrorMessage = result.Error;
         SaveWarningMessage = result.SaveWarning;
         IsBusy = false;
@@ -240,6 +358,11 @@ public partial class ReadingPageViewModel(
     [RelayCommand(CanExecute = nameof(CanRetry), AllowConcurrentExecutions = true)]
     private async Task RetryAsync()
     {
+        if (_retryBergamot && ErrorMessage.Length > 0)
+        {
+            await RetranslateWithBergamotAsync();
+            return;
+        }
         if (_retryRetranslation && _story is { } story && _selectedSentence is { } sentence)
         {
             if (ErrorMessage.Length > 0)
