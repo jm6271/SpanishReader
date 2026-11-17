@@ -95,5 +95,8 @@
     <PublishTrimmed>true</PublishTrimmed>
     <!-- Report individual diagnostics so compatibility problems stay actionable. -->
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <!-- Fail publishing if a new dependency introduces unsafe trimming. -->
+    <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+    <_ExtraTrimmerArgs>$(_ExtraTrimmerArgs) --link-attributes &quot;$(MSBuildProjectDirectory)\Trimming\LLamaSharp.LinkAttributes.xml&quot;</_ExtraTrimmerArgs>
   </PropertyGroup>
 </Project>

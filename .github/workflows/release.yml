@@ -64,6 +64,9 @@ jobs:
           -m:1 -p:UseSharedCompilation=false
           --output "${{ github.workspace }}/artifacts/publish"
 
+      - name: Verify trimmed LLamaSharp
+        run: ./tools/Test-TrimmedLlama.ps1 -PublishDirectory artifacts/publish
+
       - name: Compile Inno Setup installer
         run: |
           # Inno Setup is preinstalled on the Windows 2025 hosted runner.

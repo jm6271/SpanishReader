@@ -1,0 +1,26 @@
+<linker>
+  <!-- LLamaSharp 0.30.0 attaches reflection-based JSON converters to these two
+       parameter types. SpanishReader passes parameters directly to inference;
+       it never serializes LLamaSharp parameters. Remove only these converter
+       registrations so the unused converters can be trimmed, without disabling
+       JSON reflection checks or suppressing warnings. If parameter persistence
+       is added, supply trim-safe converters before removing this workaround.
+
+       Match the constructor argument, not every JsonConverterAttribute: the
+       application's other JSON converters must keep working.
+       Format: https://github.com/dotnet/runtime/blob/main/docs/tools/illink/data-formats.md#removing-custom-attributes -->
+  <assembly fullname="System.Text.Json">
+    <type fullname="System.Text.Json.Serialization.JsonConverterAttribute">
+      <attribute internal="RemoveAttributeInstances">
+        <argument type="System.Object">
+          <argument type="System.Type">LLama.Abstractions.TensorSplitsCollectionConverter, LLamaSharp</argument>
+        </argument>
+      </attribute>
+      <attribute internal="RemoveAttributeInstances">
+        <argument type="System.Object">
+          <argument type="System.Type">LLama.Abstractions.MetadataOverrideConverter, LLamaSharp</argument>
+        </argument>
+      </attribute>
+    </type>
+  </assembly>
+</linker>
