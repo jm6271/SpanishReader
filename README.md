@@ -7,8 +7,14 @@ SpanishReader is a Windows app for reading Spanish stories with sentence-by-sent
 ## Using the app
 
 1. In the library, select **Import**. Enter a Spanish title, CEFR level, and Spanish story text; an English title and author are optional. Select **Import story** to translate and save it.
-2. Select a story in the library to read it. Select a sentence to see its English translation. If a translation is missing, use **Translate and save** to generate it.
-3. Use the library search, CEFR filter, and sort menu to find stories. A story's actions menu lets you edit or delete it.
+2. Select a story in the library to read it. Select a sentence to see its English translation.
+3. If a translation is missing or incorrect, select one of the retranslate buttons to enter a translation manually, translate using the default machine translation model, or translate in-context with an LLM.
+4. Use the playback controls in the upper right hand corner of the app to use Windows TTS to read the story aloud (install a Windows Spanish voice first).
+5. Use the library search, CEFR filter, and sort menu to find stories. A story's actions menu lets you edit or delete it.
+
+## Installing the LLM
+
+An LLM can optionally be installed for in-context translations. It can be downloaded from the settings page. The LLM can run on any available GPUs or on the CPU. Currently `Qwen3-1.7B-Q8_0` is used.
 
 ## Screenshot
 

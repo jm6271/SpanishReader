@@ -42,6 +42,7 @@
                             AutomationProperties.AutomationId="LanguageModelCard">
                         <StackPanel Spacing="16">
                             <TextBlock Text="Language model (Optional)" FontSize="20" Foreground="{ThemeResource ReaderInkBrush}" />
+                            <TextBlock Text="LLM for optional in-context translations" Foreground="{ThemeResource ReaderInkBrush}" />
                             <TextBlock Text="Qwen3-1.7B-Q8_0 · GGUF · 1.83 GB" Foreground="{ThemeResource ReaderMutedBrush}" />
                             <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" Foreground="{ThemeResource ReaderMutedBrush}"
                                        AutomationProperties.AutomationId="ModelStatus" />
