@@ -373,16 +373,26 @@ public class ReadingTests
         File.WriteAllText(path, "installed");
         try
         {
-            var llm = new RecordingLlm { Respond = () => Task.FromResult("<think></think>  Contextual English. <think>  </think>") };
+            var pending = new TaskCompletionSource<string>();
+            var llm = new RecordingLlm { Respond = () => pending.Task };
             var repository = new FakeRepository();
             var vm = new ReadingPageViewModel(new FakeNavigation(), new FakeTranslation(), repository,
                 llm, new ModelDownloadService(new HttpClient(), path));
             var story = Story();
             vm.PrepareForDisplay(story);
             Assert.False(vm.CanRetranslate);
+            Assert.False(vm.IsRetranslateAvailable);
             await vm.SelectSentenceCommand.ExecuteAsync(story.Sentences[1]);
             Assert.True(vm.CanRetranslate);
-            await vm.RetranslateCommand.ExecuteAsync(null);
+            Assert.True(vm.IsRetranslateAvailable);
+            var retranslation = vm.RetranslateCommand.ExecuteAsync(null);
+            Assert.True(vm.IsBusy);
+            Assert.True(vm.IsRetranslateAvailable);
+            Assert.False(vm.RetranslateCommand.CanExecute(null));
+            pending.SetResult("<think></think>  Contextual English. <think>  </think>");
+            await retranslation;
+            Assert.True(vm.IsRetranslateAvailable);
+            Assert.True(vm.RetranslateCommand.CanExecute(null));
             Assert.Contains("Previous paragraph:\nPrimera.", llm.UserPrompt);
             Assert.Contains("Current paragraph:\nSegunda.", llm.UserPrompt);
             Assert.Contains("<TARGET_SENTENCE>\nSegunda.\n</TARGET_SENTENCE>", llm.UserPrompt);

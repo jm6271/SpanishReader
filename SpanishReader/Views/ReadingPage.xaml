@@ -218,15 +218,20 @@
                                                         IsEnabled="{x:Bind ViewModel.CanRetranslateWithBergamot, Mode=OneWay}"
                                                         Visibility="{x:Bind local:UiHelpers.WhenNot(ViewModel.IsEditingTranslation), Mode=OneWay}"
                                                         AutomationProperties.AutomationId="ReaderBergamotRetranslate" AutomationProperties.Name="Retranslate with Bergamot"
-                                                        ToolTipService.ToolTip="Retranslate with default Bergamot model">
+                                                        ToolTipService.ToolTip="Retranslate with default model">
                                                     <SymbolIcon Symbol="Refresh" />
                                                 </Button>
-                                                <Button Command="{x:Bind ViewModel.RetranslateCommand}" Width="32" Height="32" Padding="4"
+                                                <Button x:Name="ContextRetranslateButton" Command="{x:Bind ViewModel.RetranslateCommand}" Width="32" Height="32" Padding="4"
                                                         Style="{StaticResource SubtleButtonStyle}" Foreground="{ThemeResource ReaderInkBrush}"
-                                                        Visibility="{x:Bind local:UiHelpers.When(ViewModel.CanRetranslate), Mode=OneWay}"
+                                                        Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsRetranslateAvailable), Mode=OneWay}"
                                                         AutomationProperties.AutomationId="ReaderRetranslate" AutomationProperties.Name="Retranslate in context"
                                                         ToolTipService.ToolTip="Retranslate in context using surrounding paragraphs">
-                                                    <FontIcon Glyph="&#xE8F2;" FontSize="16" />
+                                                    <Grid Width="20" Height="20">
+                                                        <SymbolIcon Symbol="Refresh" />
+                                                        <Path Width="20" Height="20" Stretch="None"
+                                                              Data="{x:Bind RetranslateIconGeometry}"
+                                                              Fill="{Binding Foreground, ElementName=ContextRetranslateButton}" />
+                                                    </Grid>
                                                 </Button>
                                             </StackPanel>
                                         </Grid>
@@ -234,9 +239,7 @@
                                             <TextBlock Text="{x:Bind ViewModel.SelectedEnglishText, Mode=OneWay}" Language="en"
                                                        FontFamily="Georgia" FontSize="21" LineHeight="32"
                                                        Foreground="{ThemeResource ReaderInkBrush}" TextWrapping="Wrap" IsTextSelectionEnabled="True"
-                                                       Tapped="OnEnglishTextTapped"
                                                        Visibility="{x:Bind local:UiHelpers.WhenNot(ViewModel.IsEditingTranslation), Mode=OneWay}"
-                                                       ToolTipService.ToolTip="Click to edit translation"
                                                        AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="SelectedEnglish" />
                                             <StackPanel Spacing="8" Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsEditingTranslation), Mode=OneWay}">
                                                 <TextBox x:Name="EnglishEditor" Text="{x:Bind ViewModel.EditedEnglishText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

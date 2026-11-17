@@ -42,6 +42,7 @@
     <Content Include="Assets\Square44x44Logo.targetsize-48_altform-lightunplated.png" />
     <Content Include="Assets\AppIcon.ico" />
     <Content Include="Assets\AppIcon.png" />
+    <Content Include="Assets\RetranslateSparkles.svg" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <!-- Folder deployment must carry the image files referenced by ms-appx URIs. -->
     <Content Update="Assets\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

@@ -33,6 +33,7 @@ public partial class ReadingPageViewModel(
     public partial string EditedEnglishText { get; set; } = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRetranslate))]
+    [NotifyPropertyChangedFor(nameof(IsRetranslateAvailable))]
     [NotifyPropertyChangedFor(nameof(CanRetranslateWithBergamot))]
     [NotifyPropertyChangedFor(nameof(CanSaveEdit))]
     [NotifyPropertyChangedFor(nameof(CanRetry))]
@@ -44,6 +45,7 @@ public partial class ReadingPageViewModel(
     [ObservableProperty] public partial string EditSaveError { get; set; } = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRetranslate))]
+    [NotifyPropertyChangedFor(nameof(IsRetranslateAvailable))]
     [NotifyPropertyChangedFor(nameof(CanRetranslateWithBergamot))]
     [NotifyCanExecuteChangedFor(nameof(RetranslateCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetranslateWithBergamotCommand))]
@@ -52,6 +54,7 @@ public partial class ReadingPageViewModel(
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRetry))]
     [NotifyPropertyChangedFor(nameof(CanRetranslate))]
+    [NotifyPropertyChangedFor(nameof(IsRetranslateAvailable))]
     [NotifyPropertyChangedFor(nameof(CanRetranslateWithBergamot))]
     [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetranslateCommand))]
@@ -71,7 +74,9 @@ public partial class ReadingPageViewModel(
     public partial string SaveWarningMessage { get; set; } = string.Empty;
 
     public bool CanRetry => !IsBusy && !IsEditingTranslation && (ErrorMessage.Length > 0 || SaveWarningMessage.Length > 0);
-    public bool CanRetranslate => _active && HasSelection && !IsBusy && !IsEditingTranslation && models.IsInstalled;
+    // Availability controls visibility; a running request only disables the command.
+    public bool IsRetranslateAvailable => _active && HasSelection && !IsEditingTranslation && models.IsInstalled;
+    public bool CanRetranslate => IsRetranslateAvailable && !IsBusy;
     public bool CanRetranslateWithBergamot => _active && HasSelection && !IsBusy && !IsEditingTranslation;
     public bool CanSaveEdit => _active && IsEditingTranslation && !IsBusy && !string.IsNullOrWhiteSpace(EditedEnglishText);
     public IReadOnlyList<StorySentence> Sentences => _story?.Sentences ?? [];
@@ -93,6 +98,7 @@ public partial class ReadingPageViewModel(
         IsEditingTranslation = false;
         HasSelection = IsBusy = false;
         OnPropertyChanged(nameof(CanRetranslate));
+        OnPropertyChanged(nameof(IsRetranslateAvailable));
         OnPropertyChanged(nameof(CanRetranslateWithBergamot));
         RetranslateCommand.NotifyCanExecuteChanged();
         RetranslateWithBergamotCommand.NotifyCanExecuteChanged();
@@ -109,6 +115,7 @@ public partial class ReadingPageViewModel(
         IsEditingTranslation = false;
         IsBusy = false;
         OnPropertyChanged(nameof(CanRetranslate));
+        OnPropertyChanged(nameof(IsRetranslateAvailable));
         OnPropertyChanged(nameof(CanRetranslateWithBergamot));
         RetranslateCommand.NotifyCanExecuteChanged();
         RetranslateWithBergamotCommand.NotifyCanExecuteChanged();

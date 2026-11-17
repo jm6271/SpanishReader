@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Markup;
 using SpanishReader.Core.Abstractions;
 using SpanishReader.Core.Models;
 using SpanishReader.Core.ViewModels;
@@ -23,6 +24,24 @@ public sealed partial class ReadingPage : Page, INavigationAware
     public ReadingPageViewModel ViewModel { get; }
 
     public ReadAloudViewModel Player { get; }
+
+    public Microsoft.UI.Xaml.Media.Geometry RetranslateIconGeometry { get; } = LoadRetranslateIconGeometry();
+
+    private static Microsoft.UI.Xaml.Media.Geometry LoadRetranslateIconGeometry()
+    {
+        // The SVG supplies only the sparkle overlay; the circle underneath uses
+        // the same native Refresh symbol as the adjacent button so its orientation,
+        // size, and arrowhead always match the system's actual icon font.
+        // Keep coordinates inside the 0,0,20,20 viewBox: Path consumes the geometry
+        // directly without applying SVG viewBox offsets or transforms. Its fill
+        // follows the button foreground, including disabled and contrast themes.
+        var svg = System.Xml.Linq.XDocument.Load(
+            System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "RetranslateSparkles.svg"));
+        var data = (string?)svg.Root?.Element(System.Xml.Linq.XName.Get("path", "http://www.w3.org/2000/svg"))?.Attribute("d")
+            ?? throw new InvalidDataException("The retranslation SVG must contain a path.");
+        return (Microsoft.UI.Xaml.Media.Geometry)XamlBindingHelper.ConvertValue(
+            typeof(Microsoft.UI.Xaml.Media.Geometry), "F1 " + data);
+    }
 
     public ReadingPage(ReadingPageViewModel viewModel, ReadAloudViewModel player)
     {
@@ -139,12 +158,6 @@ public sealed partial class ReadingPage : Page, INavigationAware
         await Player.PlayAsync(ViewModel.Sentences, _selectedHyperlink is { } link ? _sentenceModels.GetValueOrDefault(link) : null);
 
     private void OnStop(object sender, RoutedEventArgs e) => Player.Stop();
-
-    private void OnEnglishTextTapped(object sender, TappedRoutedEventArgs e)
-    {
-        ViewModel.BeginEditCommand.Execute(null);
-        if (ViewModel.IsEditingTranslation) EnglishEditor.Focus(FocusState.Programmatic);
-    }
 
     private void OnSpokenWord(SpokenWord? word)
     {
