@@ -227,10 +227,12 @@
                                                         AutomationProperties.AutomationId="ReaderRetranslate" AutomationProperties.Name="Retranslate in context"
                                                         ToolTipService.ToolTip="Retranslate in context using surrounding paragraphs">
                                                     <Grid Width="20" Height="20">
-                                                        <SymbolIcon Symbol="Refresh" />
+                                                        <SymbolIcon x:Name="ContextRetranslateArrow" Symbol="Refresh" />
+                                                        <!-- Follow the arrow's inherited foreground, which the button's
+                                                             content presenter changes for disabled and pointer states. -->
                                                         <Path Width="20" Height="20" Stretch="None"
-                                                              Data="{x:Bind RetranslateIconGeometry}"
-                                                              Fill="{Binding Foreground, ElementName=ContextRetranslateButton}" />
+                                                              Data="{x:Bind RetranslateIconGeometry, Mode=OneTime}"
+                                                              Fill="{x:Bind ContextRetranslateArrow.Foreground, Mode=OneWay}" />
                                                     </Grid>
                                                 </Button>
                                             </StackPanel>
