@@ -68,7 +68,16 @@
                     </StackPanel>
                 </Button>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                    <Button Click="OnPlay" IsEnabled="{x:Bind Player.HasVoice, Mode=OneWay}"
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,8,0" VerticalAlignment="Center"
+                                Visibility="{x:Bind local:UiHelpers.When(Player.ShowPlaybackLoading), Mode=OneWay}">
+                        <ProgressRing Width="16" Height="16" Foreground="{ThemeResource ReaderAccentBrush}"
+                                      IsActive="{x:Bind Player.ShowPlaybackLoading, Mode=OneWay}"
+                                      AutomationProperties.Name="Preparing audio" />
+                        <TextBlock Text="Preparing audio…" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource ReaderMutedBrush}"
+                                   AutomationProperties.AutomationId="ReaderPlaybackLoading" />
+                    </StackPanel>
+                    <Button Click="OnPlay" IsEnabled="{x:Bind Player.CanPlay, Mode=OneWay}"
                             Style="{StaticResource SubtleButtonStyle}" Width="36" Height="36" Padding="4"
                             Foreground="{ThemeResource ReaderMutedBrush}"
                             AutomationProperties.AutomationId="ReaderPlay"
@@ -96,6 +105,10 @@
                                 <StackPanel Width="260" Spacing="8">
                                     <ComboBox Header="Voice" MaxWidth="260" ItemsSource="{x:Bind Player.Voices, Mode=OneWay}" SelectedItem="{x:Bind Player.Voice, Mode=TwoWay}" IsEnabled="{x:Bind Player.CanConfigure, Mode=OneWay}" HorizontalAlignment="Stretch" AutomationProperties.Name="Spanish voice" />
                                     <ComboBox Header="Reading speed (×)" ItemsSource="{x:Bind Player.Speeds, Mode=OneWay}" SelectedItem="{x:Bind Player.Speed, Mode=TwoWay}" IsEnabled="{x:Bind Player.CanConfigure, Mode=OneWay}" HorizontalAlignment="Stretch" AutomationProperties.Name="Reading speed" />
+                                    <InfoBar Severity="Warning" IsClosable="False"
+                                             IsOpen="{x:Bind local:UiHelpers.HasText(Player.PreferenceError), Mode=OneWay}"
+                                             Message="{x:Bind Player.PreferenceError, Mode=OneWay}"
+                                             AutomationProperties.AutomationId="ReaderSpeechPreferenceWarning" />
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>
@@ -138,8 +151,17 @@
                             </StackPanel>
 
                             <StackPanel Grid.Row="1" Spacing="8" Margin="0,0,0,12"
-                                        Visibility="{x:Bind local:UiHelpers.WhenPlayerFeedback(Player.HasVoice, Player.Error), Mode=OneWay}">
-                                <TextBlock Text="Install a Spanish text-to-speech voice in Windows Settings → Time &amp; language → Speech → Manage voices." TextWrapping="Wrap" Visibility="{x:Bind local:UiHelpers.WhenNot(Player.HasVoice), Mode=OneWay}" />
+                                        Visibility="{x:Bind local:UiHelpers.WhenPlayerFeedback(Player.CanPlay, Player.Error), Mode=OneWay}">
+                                <StackPanel Spacing="4" Visibility="{x:Bind local:UiHelpers.WhenNot(Player.CanPlay), Mode=OneWay}">
+                                    <TextBlock Text="{x:Bind Player.UnavailableMessage, Mode=OneWay}" TextWrapping="Wrap"
+                                               AutomationProperties.AutomationId="ReaderSpeechUnavailable" />
+                                    <HyperlinkButton Content="Open Windows Speech Settings" NavigateUri="ms-settings:speech" Padding="0,4"
+                                                     Visibility="{x:Bind local:UiHelpers.WhenWindowsSpeech(Player.Engine), Mode=OneWay}"
+                                                     AutomationProperties.AutomationId="ReaderOpenWindowsSpeechSettings" />
+                                    <HyperlinkButton Content="Open SpanishReader Settings" Click="OnOpenReadAloudSettings" Padding="0,4"
+                                                     Visibility="{x:Bind local:UiHelpers.WhenKokoroSpeech(Player.Engine), Mode=OneWay}"
+                                                     AutomationProperties.AutomationId="ReaderOpenReadAloudSettings" />
+                                </StackPanel>
                                 <InfoBar IsOpen="{x:Bind local:UiHelpers.HasText(Player.Error), Mode=OneWay}" Message="{x:Bind Player.Error, Mode=OneWay}" Severity="Error" IsClosable="False" />
                             </StackPanel>
                             <ScrollViewer x:Name="StoryScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto"
@@ -153,7 +175,7 @@
                                         <TextHighlighter x:Name="SentenceHighlight"
                                                          Background="{ThemeResource ReaderHoverBrush}"
                                                          Foreground="{ThemeResource ReaderHoverInkBrush}" />
-                                        <TextHighlighter x:Name="WordHighlight" Background="{ThemeResource ReaderSpokenWordBrush}" Foreground="{ThemeResource ReaderSpokenWordInkBrush}" />
+                                        <TextHighlighter x:Name="PlaybackHighlight" Background="{ThemeResource ReaderSpeakingSentenceBrush}" Foreground="{ThemeResource ReaderSpeakingSentenceInkBrush}" />
                                     </RichTextBlock.TextHighlighters>
                                 </RichTextBlock>
                             </ScrollViewer>

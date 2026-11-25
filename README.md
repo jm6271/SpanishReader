@@ -9,7 +9,7 @@ SpanishReader is a Windows app for reading Spanish stories with sentence-by-sent
 1. In the library, select **Import**. Enter a Spanish title, CEFR level, and Spanish story text; an English title and author are optional. Select **Import story** to translate and save it.
 2. Select a story in the library to read it. Select a sentence to see its English translation.
 3. If a translation is missing or incorrect, select one of the retranslate buttons to enter a translation manually, translate using the default machine translation model, or translate in-context with an LLM.
-4. Use the playback controls in the upper right hand corner of the app to use Windows TTS to read the story aloud (install a Windows Spanish voice first).
+4. Use the reader’s playback controls to listen with an installed Windows Spanish voice. To use Kokoro, select it under **Settings → Read aloud** and download its 326 MB model. Both engines work offline and offer voice and speed controls.
 5. Use the library search, CEFR filter, and sort menu to find stories. A story's actions menu lets you edit or delete it.
 
 ## Installing the LLM

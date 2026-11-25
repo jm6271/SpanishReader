@@ -4,9 +4,9 @@ using System.Security.Cryptography;
 
 namespace SpanishReader.Core.Services;
 
-/// <summary>Downloads the one supported model without exposing an incomplete GGUF file.</summary>
+/// <summary>Downloads a model without exposing an incomplete file.</summary>
 public sealed class ModelDownloadService(HttpClient client, string modelPath, string? expectedSha256 = null,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null, string downloadUrl = ModelDownloadService.Url)
 {
     public const string FileName = "Qwen3-1.7B-Q8_0.gguf";
     public const string Url = "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf";
@@ -26,7 +26,7 @@ public sealed class ModelDownloadService(HttpClient client, string modelPath, st
             if (IsInstalled) return;
             Directory.CreateDirectory(Path.GetDirectoryName(ModelPath)!);
             long offset = File.Exists(PartialPath) ? new FileInfo(PartialPath).Length : 0;
-            using var request = new HttpRequestMessage(HttpMethod.Get, Url);
+            using var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
             if (offset > 0) request.Headers.Range = new RangeHeaderValue(offset, null);
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();

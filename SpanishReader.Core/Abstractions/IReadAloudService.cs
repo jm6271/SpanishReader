@@ -4,14 +4,21 @@ public sealed record SpeechVoice(string Id, string Name)
 {
     public override string ToString() => Name;
 }
-public sealed record SpokenWord(int Start, int Length);
+
+public enum ReadAloudEngine { Windows, Kokoro }
+
+// The adapter owns the audio format. Prepared audio holds no native handles.
+public delegate Task PreparedReadAloudSentence(Action playbackStarted, CancellationToken cancellationToken);
 
 public interface IReadAloudService
 {
     IReadOnlyList<SpeechVoice> Voices { get; }
     string? DefaultVoiceId { get; }
-    event Action<SpokenWord?>? WordChanged;
-    Task SpeakAsync(string text, string voiceId, double speed, CancellationToken cancellationToken);
+    bool IsAvailable { get; }
+    event Action? AvailabilityChanged;
+    // Report playback start on the caller's context, once per sentence.
+    Task<PreparedReadAloudSentence> PrepareAsync(string text, string voiceId, double speed,
+        CancellationToken cancellationToken);
     void Pause();
     void Resume();
     void Stop();

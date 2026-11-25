@@ -61,16 +61,32 @@ namespace SpanishReader
             services.AddSingleton<LlamaSharpLLMService>();
             services.AddSingleton<ILLMService>(sp => sp.GetRequiredService<LlamaSharpLLMService>());
             services.AddSingleton<MainPage>();
-            services.AddSingleton<SettingsPageViewModel>();
+            services.AddSingleton(_ => new KokoroSpeechSynthesizer(
+                Path.Combine(Path.GetDirectoryName(AppDataPath.GetDatabasePath())!, "Models", KokoroSpeechSynthesizer.ModelFileName),
+                Path.Combine(AppContext.BaseDirectory, "voices")));
+            services.AddSingleton(sp =>
+            {
+                var speechModel = new ModelDownloadService(new HttpClient(),
+                    Path.Combine(Path.GetDirectoryName(AppDataPath.GetDatabasePath())!, "Models", KokoroSpeechSynthesizer.ModelFileName),
+                    KokoroSpeechSynthesizer.ModelSha256, downloadUrl: KokoroSpeechSynthesizer.ModelUrl);
+                var synthesizer = sp.GetRequiredService<KokoroSpeechSynthesizer>();
+                return new ModelDownloadViewModel(speechModel,
+                    path => path is null ? synthesizer.ReleaseModelAsync() : Task.CompletedTask);
+            });
+            services.AddSingleton(sp => new SettingsPageViewModel(sp.GetRequiredService<INavigationService>(),
+                new(sp.GetRequiredService<ModelDownloadService>(), sp.GetRequiredService<LlamaSharpLLMService>().SetModelPathAsync),
+                sp.GetRequiredService<ModelDownloadViewModel>(), sp.GetRequiredService<ReadAloudViewModel>()));
             services.AddSingleton<SettingsPage>();
             services.AddSingleton<MainWindow>();
             services.AddSingleton<ImportPage>();
             services.AddSingleton<ImportPageViewModel>();
             services.AddSingleton<EditStoryPage>();
             services.AddSingleton<EditStoryPageViewModel>();
-            services.AddSingleton<IReadAloudService, WindowsReadAloudService>();
+            services.AddSingleton<WindowsReadAloudService>();
+            services.AddSingleton<KokoroReadAloudService>();
             services.AddSingleton(_ => new ReadAloudPreferenceStore(Path.Combine(Path.GetDirectoryName(AppDataPath.GetDatabasePath())!, "speech.json")));
-            services.AddSingleton<ReadAloudViewModel>();
+            services.AddSingleton(sp => new ReadAloudViewModel(sp.GetRequiredService<WindowsReadAloudService>(),
+                sp.GetRequiredService<KokoroReadAloudService>(), sp.GetRequiredService<ReadAloudPreferenceStore>()));
             services.AddSingleton<ReadingPage>();
             services.AddSingleton<ReadingPageViewModel>();
 

@@ -33,39 +33,78 @@
 
             <Border Grid.Row="1" Background="{ThemeResource ReaderPaperBrush}"
                     BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1" CornerRadius="4" Padding="24,20,24,16">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="Settings" Style="{StaticResource ReaderPageHeadingStyle}"
-                               AutomationProperties.AutomationId="SettingsHeading" />
-                    <Border Background="{ThemeResource ReaderNotesBrush}"
-                            BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1"
-                            CornerRadius="4" Padding="20" MaxWidth="720"
-                            AutomationProperties.AutomationId="LanguageModelCard">
-                        <StackPanel Spacing="16">
-                            <TextBlock Text="Language model (Optional)" FontSize="20" Foreground="{ThemeResource ReaderInkBrush}" />
-                            <TextBlock Text="LLM for optional in-context translations" Foreground="{ThemeResource ReaderInkBrush}" />
-                            <TextBlock Text="Qwen3-1.7B-Q8_0 · GGUF · 1.83 GB" Foreground="{ThemeResource ReaderMutedBrush}" />
-                            <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" Foreground="{ThemeResource ReaderMutedBrush}"
-                                       AutomationProperties.AutomationId="ModelStatus" />
-                            <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.ProgressPercent, Mode=OneWay}"
-                                         Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsDownloading), Mode=OneWay}"
-                                         AutomationProperties.AutomationId="ModelProgress" />
-                            <InfoBar Severity="Error" IsClosable="False"
-                                     IsOpen="{x:Bind local:UiHelpers.HasText(ViewModel.ErrorMessage), Mode=OneWay}"
-                                     Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Content="Download" Command="{x:Bind ViewModel.DownloadCommand}"
-                                        IsEnabled="{x:Bind ViewModel.CanDownload, Mode=OneWay}"
-                                        AutomationProperties.AutomationId="DownloadModel" />
-                                <Button Content="Cancel" Command="{x:Bind ViewModel.CancelDownloadCommand}"
-                                        Visibility="{x:Bind local:UiHelpers.When(ViewModel.IsDownloading), Mode=OneWay}"
-                                        AutomationProperties.AutomationId="CancelModelDownload" />
-                                <Button Content="Delete" Click="OnDeleteClicked"
-                                        IsEnabled="{x:Bind ViewModel.CanDelete, Mode=OneWay}"
-                                        AutomationProperties.AutomationId="DeleteModel" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Settings" Style="{StaticResource ReaderPageHeadingStyle}"
+                                   AutomationProperties.AutomationId="SettingsHeading" />
+                        <Border Background="{ThemeResource ReaderNotesBrush}"
+                                BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="20" MaxWidth="720"
+                                AutomationProperties.AutomationId="LanguageModelCard">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Language model (Optional)" FontSize="20" Foreground="{ThemeResource ReaderInkBrush}" />
+                                <TextBlock Text="LLM for optional in-context translations" Foreground="{ThemeResource ReaderInkBrush}" />
+                                <TextBlock Text="Qwen3-1.7B-Q8_0 · GGUF · 1.83 GB" Foreground="{ThemeResource ReaderMutedBrush}" />
+                                <TextBlock Text="{x:Bind LanguageModel.Status, Mode=OneWay}" Foreground="{ThemeResource ReaderMutedBrush}"
+                                           AutomationProperties.AutomationId="ModelStatus" />
+                                <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind LanguageModel.ProgressPercent, Mode=OneWay}"
+                                             Visibility="{x:Bind local:UiHelpers.When(LanguageModel.IsDownloading), Mode=OneWay}"
+                                             AutomationProperties.AutomationId="ModelProgress" />
+                                <InfoBar Severity="Error" IsClosable="False"
+                                         IsOpen="{x:Bind local:UiHelpers.HasText(LanguageModel.ErrorMessage), Mode=OneWay}"
+                                         Message="{x:Bind LanguageModel.ErrorMessage, Mode=OneWay}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Content="Download" Command="{x:Bind LanguageModel.DownloadCommand}"
+                                            IsEnabled="{x:Bind LanguageModel.CanDownload, Mode=OneWay}"
+                                            AutomationProperties.AutomationId="DownloadModel" />
+                                    <Button Content="Cancel" Command="{x:Bind LanguageModel.CancelDownloadCommand}"
+                                            Visibility="{x:Bind local:UiHelpers.When(LanguageModel.IsDownloading), Mode=OneWay}"
+                                            AutomationProperties.AutomationId="CancelModelDownload" />
+                                    <Button Content="Delete" Click="OnDeleteClicked"
+                                            IsEnabled="{x:Bind LanguageModel.CanDelete, Mode=OneWay}"
+                                            AutomationProperties.AutomationId="DeleteModel" />
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                        </Border>
+                        <Border Background="{ThemeResource ReaderNotesBrush}"
+                                BorderBrush="{ThemeResource ReaderRuleBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="20" MaxWidth="720"
+                                AutomationProperties.AutomationId="ReadAloudModelCard">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Read aloud" FontSize="20" Foreground="{ThemeResource ReaderInkBrush}" />
+                                <RadioButtons Header="Text-to-speech engine"
+                                              SelectedIndex="{x:Bind ReadAloud.SelectedEngineIndex, Mode=TwoWay}"
+                                              AutomationProperties.AutomationId="ReadAloudEngine">
+                                    <RadioButton Content="Windows TTS" AutomationProperties.AutomationId="ReadAloudWindowsEngine" />
+                                    <RadioButton Content="Kokoro" AutomationProperties.AutomationId="ReadAloudKokoroEngine" />
+                                </RadioButtons>
+                                <InfoBar Severity="Warning" IsClosable="False"
+                                         IsOpen="{x:Bind local:UiHelpers.HasText(ReadAloud.PreferenceError), Mode=OneWay}"
+                                         Message="{x:Bind ReadAloud.PreferenceError, Mode=OneWay}" />
+                                <TextBlock Text="Kokoro v1.0 · 326 MB" Foreground="{ThemeResource ReaderMutedBrush}" />
+                                <TextBlock Text="{x:Bind ReadAloudModel.Status, Mode=OneWay}" Foreground="{ThemeResource ReaderMutedBrush}"
+                                           AutomationProperties.AutomationId="ReadAloudModelStatus" />
+                                <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ReadAloudModel.ProgressPercent, Mode=OneWay}"
+                                             Visibility="{x:Bind local:UiHelpers.When(ReadAloudModel.IsDownloading), Mode=OneWay}"
+                                             AutomationProperties.AutomationId="ReadAloudModelProgress" />
+                                <InfoBar Severity="Error" IsClosable="False"
+                                         IsOpen="{x:Bind local:UiHelpers.HasText(ReadAloudModel.ErrorMessage), Mode=OneWay}"
+                                         Message="{x:Bind ReadAloudModel.ErrorMessage, Mode=OneWay}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Content="Download" Command="{x:Bind ReadAloudModel.DownloadCommand}"
+                                            IsEnabled="{x:Bind ReadAloudModel.CanDownload, Mode=OneWay}"
+                                            AutomationProperties.AutomationId="ReadAloudDownloadModel" />
+                                    <Button Content="Cancel" Command="{x:Bind ReadAloudModel.CancelDownloadCommand}"
+                                            Visibility="{x:Bind local:UiHelpers.When(ReadAloudModel.IsDownloading), Mode=OneWay}"
+                                            AutomationProperties.AutomationId="ReadAloudCancelModelDownload" />
+                                    <Button Content="Delete" Click="OnDeleteReadAloudClicked"
+                                            IsEnabled="{x:Bind ReadAloudModel.CanDelete, Mode=OneWay}"
+                                            AutomationProperties.AutomationId="ReadAloudDeleteModel" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
     </Grid>

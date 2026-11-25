@@ -7,12 +7,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SpanishReader.Core.Tests" />
     <PackageReference Include="BergamotTranslatorSharp" Version="0.7.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="KokoroSharp" Version="0.8.4" GeneratePathProperty="true" ExcludeAssets="buildTransitive" />
+    <PackageReference Include="KokoroSharp.CPU" Version="0.8.4" />
     <PackageReference Include="LLamaSharp" Version="0.30.0" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.30.0" />
     <PackageReference Include="LLamaSharp.Backend.Vulkan.Windows" Version="0.30.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="$(PkgKokoroSharp)/content/voices/ef_dora.npy;$(PkgKokoroSharp)/content/voices/em_alex.npy;$(PkgKokoroSharp)/content/voices/em_santa.npy"
+             Link="voices/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="ThirdParty/Kokoro-LICENSE.txt" Link="voices/LICENSE.txt"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

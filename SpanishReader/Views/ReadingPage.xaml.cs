@@ -16,7 +16,8 @@ public sealed partial class ReadingPage : Page, INavigationAware
     private readonly Dictionary<DependencyObject, Hyperlink> _sentenceLinks = [];
     private readonly Dictionary<Hyperlink, TextRange> _sentenceRanges = [];
     private readonly Dictionary<Hyperlink, StorySentence> _sentenceModels = [];
-    private SpokenWord? spokenWord;
+    private readonly INavigationService _navigation;
+    private Hyperlink? _speakingHyperlink;
     private Hyperlink? _hoveredHyperlink;
     private Hyperlink? _keyboardHyperlink;
     private Hyperlink? _selectedHyperlink;
@@ -43,12 +44,17 @@ public sealed partial class ReadingPage : Page, INavigationAware
             typeof(Microsoft.UI.Xaml.Media.Geometry), "F1 " + data);
     }
 
-    public ReadingPage(ReadingPageViewModel viewModel, ReadAloudViewModel player)
+    public ReadingPage(ReadingPageViewModel viewModel, ReadAloudViewModel player, INavigationService navigation)
     {
         ViewModel = viewModel;
         Player = player;
+        _navigation = navigation;
         InitializeComponent();
-        Player.WordChanged += OnSpokenWord;
+        Player.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ReadAloudViewModel.SpeakingSentence))
+                UpdatePlaybackHighlight();
+        };
         // Hyperlinks are inline text, so pointer events belong to their text host.
         // Listen even when the native text selection/link handling marks them handled.
         StoryContent.AddHandler(PointerMovedEvent, new PointerEventHandler(OnStoryPointerMoved), true);
@@ -159,31 +165,32 @@ public sealed partial class ReadingPage : Page, INavigationAware
 
     private void OnStop(object sender, RoutedEventArgs e) => Player.Stop();
 
-    private void OnSpokenWord(SpokenWord? word)
+    private void OnOpenReadAloudSettings(object sender, RoutedEventArgs e) =>
+        _navigation.Navigate<SettingsPageViewModel>();
+
+    private void UpdatePlaybackHighlight()
     {
-        spokenWord = word;
+        _speakingHyperlink = Player.SpeakingSentence is { } sentence
+            ? _sentenceModels.FirstOrDefault(pair => ReferenceEquals(pair.Value, sentence)).Key
+            : null;
         // Reinsert the highlighter to invalidate native rendering reliably;
         // updating Ranges alone can leave the previous glyph surface unchanged.
-        StoryContent.TextHighlighters.Remove(WordHighlight);
-        WordHighlight.Ranges.Clear();
+        StoryContent.TextHighlighters.Remove(PlaybackHighlight);
+        PlaybackHighlight.Ranges.Clear();
         UpdateSentenceHighlight();
-        if (word is null) return;
-        WordHighlight.Ranges.Add(new TextRange { StartIndex = word.Start, Length = word.Length });
-        StoryContent.TextHighlighters.Insert(0, WordHighlight);
-        // Plain-text indices exclude inline boundaries. Map back through the Run
-        // that contains this word rather than using document-wide pointer offsets.
-        foreach (var pair in _sentenceRanges)
-        {
-            if (word.Start < pair.Value.StartIndex || word.Start >= pair.Value.StartIndex + pair.Value.Length) continue;
-            var run = (Run)pair.Key.Inlines[0];
-            var pointer = run.ContentStart.GetPositionAtOffset(word.Start - pair.Value.StartIndex, LogicalDirection.Forward);
-            if (pointer is null) break;
-            var rect = pointer.GetCharacterRect(LogicalDirection.Forward);
-            var top = StoryScroll.VerticalOffset;
-            if (rect.Top < top || rect.Bottom > top + StoryScroll.ViewportHeight)
-                StoryScroll.ChangeView(null, Math.Max(0, rect.Top - StoryScroll.ViewportHeight / 3), null, true);
-            break;
-        }
+        if (_speakingHyperlink is not { } link || !_sentenceRanges.TryGetValue(link, out var range)) return;
+        PlaybackHighlight.Ranges.Add(range);
+        StoryContent.TextHighlighters.Insert(0, PlaybackHighlight);
+
+        var run = (Run)link.Inlines[0];
+        double start = run.ContentStart.GetCharacterRect(LogicalDirection.Forward).Top;
+        double end = run.ContentEnd.GetCharacterRect(LogicalDirection.Backward).Bottom;
+        double top = StoryScroll.VerticalOffset;
+        double height = StoryScroll.ViewportHeight;
+        // For a sentence taller than the viewport, bring its opening line into view.
+        double visibleEnd = end - start <= height ? end : start;
+        if (start < top || visibleEnd > top + height)
+            StoryScroll.ChangeView(null, Math.Max(0, start - height / 3), null, true);
     }
 
     private void BindDocumentInk(TextElement element) =>
@@ -286,31 +293,19 @@ public sealed partial class ReadingPage : Page, INavigationAware
     private void UpdateSentenceHighlight()
     {
         SentenceHighlight.Ranges.Clear();
-        if (_selectedHyperlink is { } selected && _sentenceRanges.TryGetValue(selected, out var selectedRange))
+        if (_selectedHyperlink is { } selected && !ReferenceEquals(selected, _speakingHyperlink) &&
+            _sentenceRanges.TryGetValue(selected, out var selectedRange))
         {
-            AddSentenceRange(selectedRange);
+            SentenceHighlight.Ranges.Add(selectedRange);
         }
         // Hovering another sentence previews it without clearing the selection.
         if ((_hoveredHyperlink ?? _keyboardHyperlink) is { } hyperlink &&
             !ReferenceEquals(hyperlink, _selectedHyperlink) &&
+            !ReferenceEquals(hyperlink, _speakingHyperlink) &&
             _sentenceRanges.TryGetValue(hyperlink, out var range))
         {
-            AddSentenceRange(range);
-        }
-    }
-
-    private void AddSentenceRange(TextRange range)
-    {
-        var end = range.StartIndex + range.Length;
-        if (spokenWord is not { } word || word.Start >= end || word.Start + word.Length <= range.StartIndex)
-        {
             SentenceHighlight.Ranges.Add(range);
-            return;
         }
-        if (word.Start > range.StartIndex)
-            SentenceHighlight.Ranges.Add(new TextRange { StartIndex = range.StartIndex, Length = word.Start - range.StartIndex });
-        if (word.Start + word.Length < end)
-            SentenceHighlight.Ranges.Add(new TextRange { StartIndex = word.Start + word.Length, Length = end - word.Start - word.Length });
     }
 
     private void ResetScrollOnLoaded(object sender, RoutedEventArgs e)

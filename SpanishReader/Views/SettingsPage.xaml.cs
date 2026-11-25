@@ -7,6 +7,9 @@ namespace SpanishReader.Views;
 public sealed partial class SettingsPage : Page
 {
     public SettingsPageViewModel ViewModel { get; }
+    public ModelDownloadViewModel LanguageModel => ViewModel.LanguageModel;
+    public ModelDownloadViewModel ReadAloudModel => ViewModel.ReadAloudModel;
+    public ReadAloudViewModel ReadAloud => ViewModel.ReadAloud;
 
     public SettingsPage(SettingsPageViewModel viewModel)
     {
@@ -14,19 +17,25 @@ public sealed partial class SettingsPage : Page
         InitializeComponent();
     }
 
-    private async void OnDeleteClicked(object sender, RoutedEventArgs e)
+    private async void OnDeleteClicked(object sender, RoutedEventArgs e) =>
+        await ConfirmDeleteAsync(ViewModel.LanguageModel, "Delete language model?");
+
+    private async void OnDeleteReadAloudClicked(object sender, RoutedEventArgs e) =>
+        await ConfirmDeleteAsync(ViewModel.ReadAloudModel, "Delete read-aloud model?");
+
+    private async Task ConfirmDeleteAsync(ModelDownloadViewModel model, string title)
     {
-        if (!ViewModel.CanDelete) return;
+        if (!model.CanDelete) return;
         var answer = await new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "Delete language model?",
+            Title = title,
             Content = "The downloaded model will be removed from this device.",
             PrimaryButtonText = "Delete",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close
         }.ShowAsync();
         if (answer == ContentDialogResult.Primary)
-            await ViewModel.DeleteCommand.ExecuteAsync(null);
+            await model.DeleteCommand.ExecuteAsync(null);
     }
 }
