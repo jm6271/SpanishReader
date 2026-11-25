@@ -11,10 +11,16 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
 {
     private const int ContextTokens = 2048;
     private const int MaxResponseTokens = 512;
+    private static readonly TimeSpan ModelIdleTimeout = TimeSpan.FromMinutes(5);
+    private static readonly Lock NativeInitializationLock = new();
+    private static bool _nativeConfigured;
+
     private string? _modelPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private LLamaWeights? _weights;
     private ModelParams? _modelParams;
+    private Timer? _idleTimer;
+    private long _idleGeneration;
     private bool _disposed;
 
     public LlamaSharpLLMService(string? modelPath = null)
@@ -44,9 +50,7 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_modelPath == modelPath) return;
-            _weights?.Dispose();
-            _weights = null;
-            _modelParams = null;
+            ReleaseModel();
             _modelPath = modelPath;
         }
         finally { _gate.Release(); }
@@ -63,6 +67,7 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            CancelIdleUnload();
             if (_modelPath is null)
                 throw new FileNotFoundException("No GGUF model is installed.");
             if (_weights is null)
@@ -70,10 +75,8 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
                 if (!File.Exists(_modelPath))
                     throw new FileNotFoundException("The GGUF model file is missing.", _modelPath);
 
-                LlamaDiagnostics.Write("Loading model; LLamaSharp 0.30.0; CUDA/CPU automatic selection; Vulkan disabled.");
-                NativeLibraryConfig.All.WithCuda(false).WithVulkan(true).WithAutoFallback(true)
-                    .WithLogCallback(LlamaDiagnostics.Callback);
-                NativeLogConfig.llama_log_set(LlamaDiagnostics.Callback);
+                LlamaDiagnostics.Write("Loading model.");
+                EnsureNativeConfigured();
                 _modelParams = new ModelParams(_modelPath)
                 {
                     ContextSize = ContextTokens,
@@ -121,8 +124,74 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
         }
         finally
         {
-            _gate.Release();
+            try
+            {
+                if (!_disposed && _weights is not null)
+                {
+                    var generation = _idleGeneration;
+                    _idleTimer = new Timer(_ => UnloadIfIdle(generation), null,
+                        ModelIdleTimeout, Timeout.InfiniteTimeSpan);
+                }
+            }
+            finally { _gate.Release(); }
         }
+    }
+
+    private static void EnsureNativeConfigured()
+    {
+        // The backend is process-wide and LLamaSharp locks its configuration
+        // once the native library loads. Reloading weights reuses that backend.
+        lock (NativeInitializationLock)
+        {
+            if (_nativeConfigured)
+                return;
+
+            var config = NativeLibraryConfig.LLama;
+            if (!config.LibraryHasLoaded)
+            {
+                config.WithCuda(false).WithVulkan(true).WithAutoFallback(true)
+                    .WithLogCallback(LlamaDiagnostics.Callback);
+            }
+            NativeLogConfig.llama_log_set(LlamaDiagnostics.Callback);
+            _nativeConfigured = true;
+        }
+    }
+
+    private void UnloadIfIdle(long generation)
+    {
+        _gate.Wait();
+        try
+        {
+            // A callback already queued when a timer is disposed can still run.
+            // Check the generation under the same gate used for inference.
+            if (_disposed || generation != _idleGeneration)
+                return;
+
+            ReleaseModel();
+            LlamaDiagnostics.Write("Model unloaded after five minutes of inactivity.");
+        }
+        catch (Exception ex)
+        {
+            LlamaDiagnostics.Write($"Failed to unload idle model: {ex}");
+        }
+        finally { _gate.Release(); }
+    }
+
+    // All timer and model state changes are protected by _gate.
+    private void CancelIdleUnload()
+    {
+        _idleGeneration++;
+        _idleTimer?.Dispose();
+        _idleTimer = null;
+    }
+
+    private void ReleaseModel()
+    {
+        CancelIdleUnload();
+        var weights = _weights;
+        _weights = null;
+        _modelParams = null;
+        weights?.Dispose();
     }
 
     public void Dispose()
@@ -133,8 +202,7 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
             if (_disposed)
                 return;
             _disposed = true;
-            _weights?.Dispose();
-            _weights = null;
+            ReleaseModel();
         }
         finally
         {
