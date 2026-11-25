@@ -8,7 +8,7 @@
   #define MyAppVersion "0.1.0"
 #endif
 #ifndef PublishDir
-  #define PublishDir "..\SpanishReader\bin\Release\net10.0-windows10.0.26100.0\win-x64\publish"
+  #define PublishDir "..\SpanishReader\bin\Release\net11.0-windows10.0.26100.0\win-x64\publish"
 #endif
 #ifndef AllowedArchitecture
   #define AllowedArchitecture "x64compatible"

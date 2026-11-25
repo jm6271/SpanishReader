@@ -26,7 +26,7 @@ See [Bundled stories](docs/bundled-stories.md) for authoring, translation, and f
 
 ## Building from source
 
-On Windows, install the .NET 10 SDK and the Windows development tools needed for WinUI 3. Open `SpanishReader.slnx` in Visual Studio, or build from a terminal:
+On Windows, install the .NET 11 SDK and the Windows development tools needed for WinUI 3. Open `SpanishReader.slnx` in Visual Studio, or build from a terminal:
 
 ```powershell
 dotnet build SpanishReader\SpanishReader.csproj -p:Platform=x64
