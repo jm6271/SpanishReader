@@ -17,6 +17,7 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
 
     private string? _modelPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly CancellationTokenSource _shutdown = new();
     private LLamaWeights? _weights;
     private ModelParams? _modelParams;
     private Timer? _idleTimer;
@@ -61,11 +62,21 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
         ArgumentException.ThrowIfNullOrWhiteSpace(userPrompt);
 
+        CancellationTokenSource requestCancellation;
+        lock (_shutdown)
+        {
+            requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _shutdown.Token);
+        }
+        using var cancellation = requestCancellation;
+        var token = cancellation.Token;
+
         // Serialize native initialization and inference so disposal cannot free
-        // the weights while a request is running.
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        // the weights while a request is running. Yield even when the gate is free
+        // so synchronous native work never holds up the window's close handler.
+        await _gate.WaitAsync(token).ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
         try
         {
+            token.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
             CancelIdleUnload();
             if (_modelPath is null)
@@ -85,10 +96,11 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
                     BatchSize = 128,
                     UBatchSize = 128
                 };
-                _weights = await LLamaWeights.LoadFromFileAsync(_modelParams, cancellationToken).ConfigureAwait(false);
+                _weights = await LLamaWeights.LoadFromFileAsync(_modelParams, token).ConfigureAwait(false);
                 LlamaDiagnostics.Write("Model loaded.");
             }
 
+            token.ThrowIfCancellationRequested();
             // Keep the prompt and response within the configured context budget.
             // This is a size guard, not a recovery mechanism for native crashes.
             LlamaDiagnostics.Write("Formatting and tokenizing prompt.");
@@ -108,12 +120,16 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
             };
             var response = new StringBuilder();
             var options = new InferenceParams { MaxTokens = MaxResponseTokens };
+            token.ThrowIfCancellationRequested();
             LlamaDiagnostics.Write("Starting inference.");
-            await foreach (var chunk in executor.InferAsync(userPrompt, options, cancellationToken).ConfigureAwait(false))
+            await foreach (var chunk in executor.InferAsync(userPrompt, options, token).ConfigureAwait(false))
             {
+                token.ThrowIfCancellationRequested();
                 if (response.Length == 0) LlamaDiagnostics.Write("Received first output chunk.");
                 response.Append(chunk);
             }
+            // The executor can end the stream normally when cancellation is requested.
+            token.ThrowIfCancellationRequested();
             LlamaDiagnostics.Write("Inference completed.");
             return response.ToString().Trim();
         }
@@ -126,7 +142,7 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
         {
             try
             {
-                if (!_disposed && _weights is not null)
+                if (!_shutdown.IsCancellationRequested && _weights is not null)
                 {
                     var generation = _idleGeneration;
                     _idleTimer = new Timer(_ => UnloadIfIdle(generation), null,
@@ -196,13 +212,27 @@ public sealed class LlamaSharpLLMService : ILLMService, IDisposable
 
     public void Dispose()
     {
+        // Signal before waiting for the gate so running and queued requests can stop.
+        // Serialize with linked token creation and repeated DI disposal calls.
+        lock (_shutdown)
+        {
+            if (!_shutdown.IsCancellationRequested)
+                _shutdown.Cancel();
+        }
         _gate.Wait();
         try
         {
             if (_disposed)
                 return;
             _disposed = true;
-            ReleaseModel();
+            try { ReleaseModel(); }
+            finally
+            {
+                lock (_shutdown)
+                {
+                    _shutdown.Dispose();
+                }
+            }
         }
         finally
         {

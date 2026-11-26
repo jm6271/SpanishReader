@@ -304,6 +304,10 @@ public partial class ReadingPageViewModel(
             if (_active && version == _selectionVersion && ReferenceEquals(_selectedSentence, sentence))
                 SelectedEnglishText = work.EnglishText;
         }
+        catch (OperationCanceledException)
+        {
+            return new(string.Empty, string.Empty);
+        }
         catch (Exception)
         {
             return new("The sentence could not be retranslated. Please try again.", string.Empty);

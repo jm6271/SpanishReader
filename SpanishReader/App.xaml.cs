@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using SpanishReader.Core.Abstractions;
 using SpanishReader.Core.Services;
@@ -16,6 +17,8 @@ namespace SpanishReader
     /// </summary>
     public partial class App : Application
     {
+        private bool _closing;
+
         public IServiceProvider Services { get; }
 
         /// <summary>
@@ -114,12 +117,36 @@ namespace SpanishReader
                 llm.SetModelPathAsync(downloader.ModelPath).GetAwaiter().GetResult();
             Window = Services.GetRequiredService<MainWindow>();
             WindowPlacementService.Restore(Window, Services.GetRequiredService<WindowPlacementStore>());
+            Window.AppWindow.Closing += OnWindowClosing;
             Window.Closed += OnWindowClosed;
             Window.Activate();
         }
 
+        private async void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+        {
+            // Defer the system close so the dispatcher can keep running while the
+            // LLM cancels native work and releases its model.
+            args.Cancel = true;
+            if (_closing) return;
+            _closing = true;
+            try
+            {
+                var llm = Services.GetRequiredService<LlamaSharpLLMService>();
+                // Let the system close event return even if the model is already idle.
+                await Task.Run(llm.Dispose).ConfigureAwait(
+                    ConfigureAwaitOptions.ForceYielding | ConfigureAwaitOptions.ContinueOnCapturedContext);
+            }
+            finally
+            {
+                if (_closing)
+                    Window.Close();
+            }
+        }
+
         private void OnWindowClosed(object sender, WindowEventArgs args)
         {
+            _closing = false;
+            Window.AppWindow.Closing -= OnWindowClosing;
             Window.Closed -= OnWindowClosed;
             // Capture before disposing services. This also handles Window.Close(),
             // which does not raise AppWindow.Closing like the system close button.
